@@ -1,0 +1,27 @@
+plugins {
+    id 'com.android.fused-library'
+    id 'maven-publish'
+}
+
+androidFusedLibrary {
+    namespace = "io.github.goooler.mmkvfused"
+    minSdk = 23
+}
+
+dependencies {
+    include project(':mmkv')
+    include project(':mmkvannotation')
+}
+
+publishing {
+    publications {
+        release(MavenPublication) {
+            groupId = "io.github.goooler.mmkv"
+            artifactId = "mmkv-fused"
+            version = "2.2.2"
+            afterEvaluate {
+                from components.fusedLibraryComponent
+            }
+        }
+    }
+}

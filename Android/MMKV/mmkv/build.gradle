@@ -58,26 +58,6 @@ android {
                 }
             }
         }
-        StaticCpp {
-            dimension "stl_mode"
-            ext.artifactIdSuffix = 'static'
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_static"]
-                    cppFlags "-DMMKV_STL_SHARED=0"
-                }
-            }
-        }
-        SharedCpp {
-            dimension "stl_mode"
-            ext.artifactIdSuffix = 'shared'
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_shared"]
-                    cppFlags "-DMMKV_STL_SHARED=1"
-                }
-            }
-        }
     }
     buildFeatures {
         buildConfig true

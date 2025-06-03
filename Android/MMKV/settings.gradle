@@ -27,4 +27,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MMKV-Android"
 
-include ':mmkv', ':mmkvdemo', 'mmkvannotation'
+include ':mmkv', ':mmkvdemo', 'mmkvannotation', 'fused'
