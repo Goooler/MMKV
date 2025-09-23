@@ -136,7 +136,7 @@ androidComponents {
 
 mavenPublishing {
     def buildTypes = ['release'] as Set
-    def variants = ['stl_mode': ['DefaultCpp'] as Set]
+    def variants = ['stl_mode': ['DefaultCpp', 'StaticCpp', 'SharedCpp'] as Set]
     configure(new AndroidMultiVariantLibrary(true, true, buildTypes, variants))
 }
 
