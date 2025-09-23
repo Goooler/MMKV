@@ -48,33 +48,13 @@ android {
         DefaultCpp {
             isDefault = true
             dimension "stl_mode"
-            ext.artifactIdSuffix = ''
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_static"]
-                    cppFlags "-DMMKV_STL_SHARED=0"
-                }
-            }
         }
         StaticCpp {
             dimension "stl_mode"
-            ext.artifactIdSuffix = 'static'
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_static"]
-                    cppFlags "-DMMKV_STL_SHARED=0"
-                }
-            }
         }
         SharedCpp {
             dimension "stl_mode"
             ext.artifactIdSuffix = 'shared'
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_shared"]
-                    cppFlags "-DMMKV_STL_SHARED=1"
-                }
-            }
         }
     }
     buildFeatures {
@@ -90,9 +70,43 @@ android {
     }
 }
 
-// TODO: should be improved to avoid hardcoding the path.
 androidComponents {
     onVariants(selector().all()) { variant ->
+        def flavorName = variant.flavorName
+        if (flavorName == 'DefaultCpp') {
+            ext.artifactIdSuffix = ''
+            variant.externalNativeBuild?.with {
+                arguments.addAll(
+                        "-DANDROID_STL=c++_static",
+                )
+                cppFlags.addAll(
+                        "-DMMKV_STL_SHARED=0",
+                )
+            }
+        } else if (flavorName == 'StaticCpp') {
+            ext.artifactIdSuffix = 'static'
+            variant.externalNativeBuild?.with {
+                arguments.addAll(
+                        "-DANDROID_STL=c++_static",
+                )
+                cppFlags.addAll(
+                        "-DMMKV_STL_SHARED=0",
+                )
+            }
+        } else if (flavorName == 'SharedCpp') {
+            variant.externalNativeBuild?.with {
+                arguments.addAll(
+                        "-DANDROID_STL=c++_shared",
+                )
+                cppFlags.addAll(
+                        "-DMMKV_STL_SHARED=1",
+                )
+            }
+        }
+    }
+
+    // TODO: should be improved to avoid hardcoding the path.
+    onVariants(selector().withBuildType("release")) { variant ->
         def capName = variant.name.capitalize()
         def abiFilters = ['arm64-v8a', 'x86_64', 'armeabi-v7a', 'x86']
 
