@@ -127,7 +127,7 @@ androidComponents {
             if (name == "strip${capName}DebugSymbols") {
                 finalizedBy(syncStrippedLibsToPrefab)
             }
-            if (name == "bundle${capName}Aar") {
+            if (name == "bundle${capName}Aar" || name == "bundle${capName}LocalLintAar") {
                 dependsOn(syncStrippedLibsToPrefab)
             }
         }
