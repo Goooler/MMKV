@@ -9,6 +9,12 @@
         "Android/MMKV/**",
         ".github/workflows/**"
       ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+      ],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true,
       "enabled": true
     },
     {
