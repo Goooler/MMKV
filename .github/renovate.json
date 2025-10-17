@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "matchPaths": [
+        "Android/MMKV/**",
+        ".github/workflows/**"
+      ],
+      "enabled": true
+    },
+    {
+      "matchPaths": [
+        "**"
+      ],
+      "enabled": false
+    }
+  ]
+}
