@@ -5,9 +5,17 @@
   ],
   "packageRules": [
     {
-      "matchFileNames": [
-        "Android/MMKV/**"
-      ]
+      "matchPaths": [
+        "Android/MMKV/**",
+        ".github/workflows/**"
+      ],
+      "enabled": true
+    },
+    {
+      "matchPaths": [
+        "**"
+      ],
+      "enabled": false
     }
   ]
 }
