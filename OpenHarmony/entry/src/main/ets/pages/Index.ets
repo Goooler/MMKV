@@ -335,8 +335,8 @@ struct Index {
     hilog.info(0, 'mmkvdemo', 'float64-array = %{public}s', ArrayToString(newFloat64Array));
   }
 
-  testMMKV(mmapID: string, decodeOnly: boolean, cryptKey?: string, rootPath?: string): MMKV {
-    let kv = MMKV.mmkvWithID(mmapID, MMKV.SINGLE_PROCESS_MODE, cryptKey, rootPath);
+  testMMKV(mmapID: string, decodeOnly: boolean, cryptKey?: string, rootPath?: string, aes256?: boolean): MMKV {
+    let kv = MMKV.mmkvWithID(mmapID, MMKV.SINGLE_PROCESS_MODE, cryptKey, rootPath, undefined, aes256);
 
     testOneMMKV(kv, decodeOnly);
     hilog.info(0, 'mmkvdemo', 'isFileValue %{public}s', MMKV.isFileValid(kv.mmapID, rootPath));
@@ -352,9 +352,9 @@ struct Index {
     kv.clearMemoryCache();
     this.testMMKV(mmapID, true, 'Key_seq_1');
 
-    kv.reKey('Key_seq_2');
+    kv.reKey('Key_Seq_Very_Looooooooong', true);
     kv.clearMemoryCache();
-    this.testMMKV(mmapID, true, 'Key_seq_2');
+    this.testMMKV(mmapID, true, 'Key_Seq_Very_Looooooooong', undefined, true);
 
     kv.reKey();
     kv.clearMemoryCache();

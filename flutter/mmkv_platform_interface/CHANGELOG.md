@@ -1,4 +1,7 @@
 # MMKV Platform Interface Change Log
+## v2.3.0 / 2025-12-03
+* Alter `getMMKVWithID2()`, `getDefaultMMKV()`, `reKey()` and `checkReSetCryptKey()` to support **AES-256 encryption** functionality.
+
 ## v2.2.3 / 2025-08-20
 * Protect from `freePtr()` not found.
 

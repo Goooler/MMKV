@@ -49,7 +49,7 @@ MMKV_EXPORT void onExit() {
 }
 
 MMKV_EXPORT void *getMMKVWithID(GoStringWrap mmapID, int32_t mode, GoStringWrap cryptKey, 
-                                GoStringWrap rootPath, uint64_t expectedCapacity) {
+                                GoStringWrap rootPath, uint64_t expectedCapacity, bool aes256) {
     MMKV *kv = nullptr;
     if (!mmapID.ptr) {
         return kv;
@@ -62,9 +62,9 @@ MMKV_EXPORT void *getMMKVWithID(GoStringWrap mmapID, int32_t mode, GoStringWrap 
         if (crypt.length() > 0) {
             if (rootPath.ptr) {
                 auto path = string(rootPath.ptr, rootPath.length);
-                kv = MMKV::mmkvWithID(str, (MMKVMode) mode, &crypt, &path, expectedCapacity);
+                kv = MMKV::mmkvWithID(str, (MMKVMode) mode, &crypt, &path, expectedCapacity, aes256);
             } else {
-                kv = MMKV::mmkvWithID(str, (MMKVMode) mode, &crypt, nullptr, expectedCapacity);
+                kv = MMKV::mmkvWithID(str, (MMKVMode) mode, &crypt, nullptr, expectedCapacity, aes256);
             }
             done = true;
         }
@@ -72,26 +72,26 @@ MMKV_EXPORT void *getMMKVWithID(GoStringWrap mmapID, int32_t mode, GoStringWrap 
     if (!done) {
         if (rootPath.ptr) {
             auto path = string(rootPath.ptr, rootPath.length);
-            kv = MMKV::mmkvWithID(str, (MMKVMode) mode, nullptr, &path, expectedCapacity);
+            kv = MMKV::mmkvWithID(str, (MMKVMode) mode, nullptr, &path, expectedCapacity, aes256);
         } else {
-            kv = MMKV::mmkvWithID(str, (MMKVMode) mode, nullptr, nullptr, expectedCapacity);
+            kv = MMKV::mmkvWithID(str, (MMKVMode) mode, nullptr, nullptr, expectedCapacity, aes256);
         }
     }
 
     return kv;
 }
 
-MMKV_EXPORT void *getDefaultMMKV(int32_t mode, GoStringWrap cryptKey) {
+MMKV_EXPORT void *getDefaultMMKV(int32_t mode, GoStringWrap cryptKey, bool aes256) {
     MMKV *kv = nullptr;
 
     if (cryptKey.ptr) {
         auto crypt = string(cryptKey.ptr, cryptKey.length);
         if (crypt.length() > 0) {
-            kv = MMKV::defaultMMKV((MMKVMode) mode, &crypt);
+            kv = MMKV::defaultMMKV((MMKVMode) mode, &crypt, aes256);
         }
     }
     if (!kv) {
-        kv = MMKV::defaultMMKV((MMKVMode) mode, nullptr);
+        kv = MMKV::defaultMMKV((MMKVMode) mode, nullptr, aes256);
     }
 
     return kv;
@@ -350,14 +350,14 @@ MMKV_EXPORT void *decodeBytes(void *handle, GoStringWrap oKey, uint64_t *lengthP
 
 #    ifndef MMKV_DISABLE_CRYPT
 
-MMKV_EXPORT bool reKey(void *handle, GoStringWrap oKey) {
+MMKV_EXPORT bool reKey(void *handle, GoStringWrap oKey, bool aes256) {
     MMKV *kv = static_cast<MMKV *>(handle);
     if (kv) {
         if (oKey.ptr && oKey.length > 0) {
             string key(oKey.ptr, oKey.length);
-            return kv->reKey(key);
+            return kv->reKey(key, aes256);
         } else {
-            return kv->reKey(string());
+            return kv->reKey(string(), aes256);
         }
     }
     return false;
@@ -379,21 +379,21 @@ MMKV_EXPORT void *cryptKey(void *handle, uint32_t *lengthPtr) {
     return nullptr;
 }
 
-MMKV_EXPORT void checkReSetCryptKey(void *handle, GoStringWrap oKey) {
+MMKV_EXPORT void checkReSetCryptKey(void *handle, GoStringWrap oKey, bool aes256) {
     MMKV *kv = static_cast<MMKV *>(handle);
     if (kv) {
         if (oKey.ptr && oKey.length > 0) {
             string key(oKey.ptr, oKey.length);
-            kv->checkReSetCryptKey(&key);
+            kv->checkReSetCryptKey(&key, aes256);
         } else {
-            kv->checkReSetCryptKey(nullptr);
+            kv->checkReSetCryptKey(nullptr, aes256);
         }
     }
 }
 
 #    else // fix cgo cannot find function reference.
 
-MMKV_EXPORT bool reKey(void *handle, GoStringWrap oKey) {
+MMKV_EXPORT bool reKey(void *handle, GoStringWrap oKey, bool aes256) {
     return false;
 }
 
@@ -401,7 +401,7 @@ MMKV_EXPORT void *cryptKey(void *handle, uint32_t *lengthPtr) {
     return nullptr;
 }
 
-MMKV_EXPORT void checkReSetCryptKey(void *handle, GoStringWrap oKey) {}
+MMKV_EXPORT void checkReSetCryptKey(void *handle, GoStringWrap oKey, bool aes256) {}
 
 #    endif // MMKV_DISABLE_CRYPT
 

@@ -81,7 +81,8 @@ MMKV_EXPORT void mmkvInitialize(const char *rootDir, int32_t logLevel) {
     mmkvInitialize_v2(rootDir, nullptr, 0, logLevel, nullptr);
 }
 
-MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, int32_t mode, const char *cryptKey, const char *rootPath, size_t expectedCapacity, bool fromNameSpace) {
+MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, int32_t mode, const char *cryptKey, const char *rootPath,
+                                 size_t expectedCapacity, bool fromNameSpace, bool aes256) {
     MMKV *kv = nullptr;
     if (!mmapID) {
         return kv;
@@ -96,12 +97,12 @@ MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, int32_t mode, const char *c
                 string path = rootPath;
                 if (fromNameSpace) {
                     auto ns = MMKV::nameSpace(path);
-                    kv = ns.mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, expectedCapacity);
+                    kv = ns.mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, expectedCapacity, aes256);
                 } else {
-                    kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, &path, expectedCapacity);
+                    kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, &path, expectedCapacity, aes256);
                 }
             } else {
-                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, nullptr, expectedCapacity);
+                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, nullptr, expectedCapacity, aes256);
             }
             done = true;
         }
@@ -111,12 +112,12 @@ MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, int32_t mode, const char *c
             string path = rootPath;
             if (fromNameSpace) {
                 auto ns = MMKV::nameSpace(path);
-                kv = ns.mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, expectedCapacity);
+                kv = ns.mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, expectedCapacity, aes256);
             } else {
-                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, &path, expectedCapacity);
+                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, &path, expectedCapacity, aes256);
             }
         } else {
-            kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, nullptr, expectedCapacity);
+            kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, nullptr, expectedCapacity, aes256);
         }
     }
 
@@ -124,20 +125,20 @@ MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, int32_t mode, const char *c
 }
 
 MMKV_EXPORT void *getMMKVWithID(const char *mmapID, int32_t mode, const char *cryptKey, const char *rootPath, size_t expectedCapacity) {
-    return getMMKVWithID2(mmapID, mode, cryptKey, rootPath, expectedCapacity, false);
+    return getMMKVWithID2(mmapID, mode, cryptKey, rootPath, expectedCapacity, false, false);
 }
 
-MMKV_EXPORT void *getDefaultMMKV(int32_t mode, const char *cryptKey) {
+MMKV_EXPORT void *getDefaultMMKV(int32_t mode, const char *cryptKey, bool aes256) {
     MMKV *kv = nullptr;
 
     if (cryptKey) {
         string crypt = cryptKey;
         if (crypt.length() > 0) {
-            kv = MMKV::defaultMMKV((MMKVMode) mode, &crypt);
+            kv = MMKV::defaultMMKV((MMKVMode) mode, &crypt, aes256);
         }
     }
     if (!kv) {
-        kv = MMKV::defaultMMKV((MMKVMode) mode, nullptr);
+        kv = MMKV::defaultMMKV((MMKVMode) mode, nullptr, aes256);
     }
 
     return kv;
@@ -321,14 +322,14 @@ MMKV_EXPORT void *decodeBytes(void *handle, const char *oKey, uint64_t *lengthPt
 
 #    ifndef MMKV_DISABLE_CRYPT
 
-MMKV_EXPORT bool reKey(void *handle, char *oKey, uint64_t length) {
+MMKV_EXPORT bool reKey(void *handle, char *oKey, uint64_t length, bool aes256) {
     MMKV *kv = static_cast<MMKV *>(handle);
     if (kv) {
         if (oKey && length > 0) {
             string key(oKey, length);
-            return kv->reKey(key);
+            return kv->reKey(key, aes256);
         } else {
-            return kv->reKey(string());
+            return kv->reKey(string(), aes256);
         }
     }
     return false;
@@ -350,14 +351,14 @@ MMKV_EXPORT void *cryptKey(void *handle, uint64_t *lengthPtr) {
     return nullptr;
 }
 
-MMKV_EXPORT void checkReSetCryptKey(void *handle, char *oKey, uint64_t length) {
+MMKV_EXPORT void checkReSetCryptKey(void *handle, char *oKey, uint64_t length, bool aes256) {
     MMKV *kv = static_cast<MMKV *>(handle);
     if (kv) {
         if (oKey && length > 0) {
             string key(oKey, length);
-            kv->checkReSetCryptKey(&key);
+            kv->checkReSetCryptKey(&key, aes256);
         } else {
-            kv->checkReSetCryptKey(nullptr);
+            kv->checkReSetCryptKey(nullptr, aes256);
         }
     }
 }

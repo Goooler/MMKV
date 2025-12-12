@@ -218,11 +218,11 @@ type MMKV interface {
 	 * You can transfer a plain-text MMKV into encrypted by setting an non-null, non-empty cryptKey.
 	 * Or vice versa by passing cryptKey with null. See also checkReSetCryptKey().
 	 */
-	ReKey(newKey string) bool
+	ReKey(newKey string, aes256 bool) bool
 
 	// CheckReSetCryptKey Just reset the cryptKey (will not encrypt or decrypt anything).
 	// Usually you should call this method after other process reKey() the multi-process mmkv.
-	CheckReSetCryptKey(key string)
+	CheckReSetCryptKey(key string, aes256 bool)
 
 	// See also reKey().
 	CryptKey() string
@@ -285,26 +285,26 @@ func PageSize() int32 {
 
 // DefaultMMKV a generic purpose instance in single-process mode.
 func DefaultMMKV() MMKV {
-	mmkv := ctorMMKV(C.getDefaultMMKV(MMKV_SINGLE_PROCESS, C.GoStringWrapNil()))
+	mmkv := ctorMMKV(C.getDefaultMMKV(MMKV_SINGLE_PROCESS, C.GoStringWrapNil(), C.bool(false)))
 	return MMKV(mmkv)
 }
 
 // DefaultMMKVWithMode a generic purpose instance in single-process or multi-process mode.
 func DefaultMMKVWithMode(mode int) MMKV {
-	mmkv := ctorMMKV(C.getDefaultMMKV(C.int(mode), C.GoStringWrapNil()))
+	mmkv := ctorMMKV(C.getDefaultMMKV(C.int(mode), C.GoStringWrapNil(), C.bool(false)))
 	return MMKV(mmkv)
 }
 
 // DefaultMMKVWithModeAndCryptKey an encrypted generic purpose instance in single-process or multi-process mode.
-func DefaultMMKVWithModeAndCryptKey(mode int, cryptKey string) MMKV {
-	mmkv := ctorMMKV(C.getDefaultMMKV(MMKV_SINGLE_PROCESS, C.wrapGoString(cryptKey)))
+func DefaultMMKVWithModeAndCryptKey(mode int, cryptKey string, aes256 bool) MMKV {
+	mmkv := ctorMMKV(C.getDefaultMMKV(MMKV_SINGLE_PROCESS, C.wrapGoString(cryptKey), C.bool(aes256)))
 	return MMKV(mmkv)
 }
 
 // MMKVWithID an instance with specific location ${MMKV Root}/mmapID, in single-process mode.
 func MMKVWithID(mmapID string) MMKV {
 	cStrNull := C.GoStringWrapNil()
-	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), MMKV_SINGLE_PROCESS, cStrNull, cStrNull, 0))
+	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), MMKV_SINGLE_PROCESS, cStrNull, cStrNull, 0, C.bool(false)))
 	return MMKV(mmkv)
 }
 
@@ -312,21 +312,21 @@ func MMKVWithID(mmapID string) MMKV {
 func MMKVWithIDAndExpectedCapacity(mmapID string, expectedCapacity uint64) MMKV {
 	cStrNull := C.GoStringWrapNil()
 	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), MMKV_SINGLE_PROCESS, cStrNull, cStrNull,
-		C.uint64_t(expectedCapacity)))
+		C.uint64_t(expectedCapacity), C.bool(false)))
 	return MMKV(mmkv)
 }
 
 // MMKVWithIDAndMode an instance with specific location ${MMKV Root}/mmapID, in single-process or multi-process mode.
 func MMKVWithIDAndMode(mmapID string, mode int) MMKV {
 	cStrNull := C.GoStringWrapNil()
-	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), cStrNull, cStrNull, 0))
+	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), cStrNull, cStrNull, 0, C.bool(false)))
 	return MMKV(mmkv)
 }
 
 // MMKVWithIDAndModeAndCryptKey an encrypted instance with specific location ${MMKV Root}/mmapID, in single-process or multi-process mode.
-func MMKVWithIDAndModeAndCryptKey(mmapID string, mode int, cryptKey string) MMKV {
+func MMKVWithIDAndModeAndCryptKey(mmapID string, mode int, cryptKey string, aes256 bool) MMKV {
 	cStrNull := C.GoStringWrapNil()
-	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), C.wrapGoString(cryptKey), cStrNull, 0))
+	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), C.wrapGoString(cryptKey), cStrNull, 0, C.bool(aes256)))
 	return MMKV(mmkv)
 }
 
@@ -681,13 +681,13 @@ func (kv ctorMMKV) Close() {
 	C.mmkvClose(unsafe.Pointer(kv))
 }
 
-func (kv ctorMMKV) ReKey(newKey string) bool {
-	ret := C.reKey(unsafe.Pointer(kv), C.wrapGoString(newKey))
+func (kv ctorMMKV) ReKey(newKey string, aes256 bool) bool {
+	ret := C.reKey(unsafe.Pointer(kv), C.wrapGoString(newKey), C.bool(aes256))
 	return bool(ret)
 }
 
-func (kv ctorMMKV) CheckReSetCryptKey(key string) {
-	C.checkReSetCryptKey(unsafe.Pointer(kv), C.wrapGoString(key))
+func (kv ctorMMKV) CheckReSetCryptKey(key string, aes256 bool) {
+	C.checkReSetCryptKey(unsafe.Pointer(kv), C.wrapGoString(key), C.bool(aes256))
 }
 
 func (kv ctorMMKV) CryptKey() string {
@@ -743,7 +743,7 @@ func (ns *NameSpace) GetRootDir() string {
 func (ns *NameSpace) MMKVWithID(mmapID string) MMKV {
 	cStrNull := C.GoStringWrapNil()
 	root := C.wrapGoString(ns.rootDir)
-	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), MMKV_SINGLE_PROCESS, cStrNull, root, 0))
+	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), MMKV_SINGLE_PROCESS, cStrNull, root, 0, C.bool(false)))
 	return MMKV(mmkv)
 }
 
@@ -752,7 +752,7 @@ func (ns *NameSpace) MMKVWithIDAndExpectedCapacity(mmapID string, expectedCapaci
 	cStrNull := C.GoStringWrapNil()
 	root := C.wrapGoString(ns.rootDir)
 	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), MMKV_SINGLE_PROCESS, cStrNull, root,
-		C.uint64_t(expectedCapacity)))
+		C.uint64_t(expectedCapacity), C.bool(false)))
 	return MMKV(mmkv)
 }
 
@@ -760,14 +760,14 @@ func (ns *NameSpace) MMKVWithIDAndExpectedCapacity(mmapID string, expectedCapaci
 func (ns *NameSpace) MMKVWithIDAndMode(mmapID string, mode int) MMKV {
 	cStrNull := C.GoStringWrapNil()
 	root := C.wrapGoString(ns.rootDir)
-	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), cStrNull, root, 0))
+	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), cStrNull, root, 0, C.bool(false)))
 	return MMKV(mmkv)
 }
 
 // MMKVWithIDAndModeAndCryptKey an encrypted instance with specific location ${NameSpace Root}/mmapID, in single-process or multi-process mode.
-func (ns *NameSpace) MMKVWithIDAndModeAndCryptKey(mmapID string, mode int, cryptKey string) MMKV {
+func (ns *NameSpace) MMKVWithIDAndModeAndCryptKey(mmapID string, mode int, cryptKey string, aes256 bool) MMKV {
 	root := C.wrapGoString(ns.rootDir)
-	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), C.wrapGoString(cryptKey), root, 0))
+	mmkv := ctorMMKV(C.getMMKVWithID(C.wrapGoString(mmapID), C.int(mode), C.wrapGoString(cryptKey), root, 0, C.bool(aes256)))
 	return MMKV(mmkv)
 }
 

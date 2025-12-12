@@ -109,11 +109,11 @@ class MMKVPluginPlatform {
     throw UnimplementedError();
   }
 
-  Pointer<Void> Function(Pointer<Utf8> mmapID, int, Pointer<Utf8> cryptKey, Pointer<Utf8> rootDir, int expectedCapacity, int isNameSpace) getMMKVWithIDFunc2() {
+  Pointer<Void> Function(Pointer<Utf8> mmapID, int, Pointer<Utf8> cryptKey, Pointer<Utf8> rootDir, int expectedCapacity, int isNameSpace, int aes256) getMMKVWithIDFunc2() {
     throw UnimplementedError();
   }
 
-  Pointer<Void> Function(int, Pointer<Utf8> cryptKey) getDefaultMMKVFunc() {
+  Pointer<Void> Function(int, Pointer<Utf8> cryptKey, int aes256) getDefaultMMKVFunc() {
     throw UnimplementedError();
   }
 
@@ -177,7 +177,7 @@ class MMKVPluginPlatform {
     throw UnimplementedError();
   }
 
-  int Function(Pointer<Void>, Pointer<Uint8>, int) reKeyFunc() {
+  int Function(Pointer<Void>, Pointer<Uint8>, int length, int aes256) reKeyFunc() {
     throw UnimplementedError();
   }
 
@@ -185,7 +185,7 @@ class MMKVPluginPlatform {
     throw UnimplementedError();
   }
 
-  void Function(Pointer<Void>, Pointer<Uint8>, int) checkReSetCryptKeyFunc() {
+  void Function(Pointer<Void>, Pointer<Uint8>, int length, int aes256) checkReSetCryptKeyFunc() {
     throw UnimplementedError();
   }
 

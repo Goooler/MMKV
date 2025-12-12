@@ -2,110 +2,143 @@ import sys
 import re
 import ctypes
 
-# Define a mapping from Java types to JNI types and ctypes
+# Mapping: Java Type -> (JNI Descriptor, Ctypes Type)
 type_map = {
-    "void": ("V", ctypes.c_void_p),
-    "boolean": ("Z", ctypes.c_bool),
-    "byte": ("B", ctypes.c_byte),
-    "char": ("C", ctypes.c_char),
-    "short": ("S", ctypes.c_short),
-    "int": ("I", ctypes.c_int),
-    "long": ("J", ctypes.c_long),
-    "float": ("F", ctypes.c_float),
-    "double": ("D", ctypes.c_double),
-    "String": ("Ljava/lang/String;", ctypes.c_void_p)  # Strings are represented as jobject (void pointer)
+    "void":    ("V", None),
+    "boolean": ("Z", ctypes.c_ubyte),  # jboolean is unsigned 8-bit
+    "byte":    ("B", ctypes.c_byte),
+    "char":    ("C", ctypes.c_uint16), # jchar is unsigned 16-bit
+    "short":   ("S", ctypes.c_short),
+    "int":     ("I", ctypes.c_int),
+    "long":    ("J", ctypes.c_int64),  # Java long is always 64-bit
+    "float":   ("F", ctypes.c_float),
+    "double":  ("D", ctypes.c_double),
+    "String":  ("Ljava/lang/String;", ctypes.c_void_p),
+    "Object":  ("Ljava/lang/Object;", ctypes.c_void_p),
 }
 
 def get_jni_signature(return_type, params):
-    """
-    Generate the JNI signature for a given method.
+    """Generates the JNI encoding (e.g., '(II)V')."""
+    def get_type_sig(t_type):
+        if t_type.endswith("[]"):
+            return "[" + get_type_sig(t_type[:-2])
+        if t_type in type_map:
+            return type_map[t_type][0]
+        # Fallback for custom classes: replace . with / and wrap in L...;
+        formatted_type = t_type.replace('.', '/')
+        return f"L{formatted_type};"
 
-    :param return_type: Return type of the method
-    :param params: List of tuples representing parameter types and their nullability
-                   e.g., ("String", True) for a nullable String parameter
-    :return: JNI signature string
-    """
-    def get_type_signature(param_type):
-        if param_type in type_map:
-            return type_map[param_type][0]
-        elif param_type.endswith("[]"):
-            return "[" + get_type_signature(param_type[:-2])
-        else:
-            return "L" + param_type.replace('.', '/') + ";"
-
-    param_signatures = [get_type_signature(param_type) for param_type, _ in params]
-    return_signature = get_type_signature(return_type)
-
-    return f"({''.join(param_signatures)}){return_signature}"
+    param_sigs = [get_type_sig(p_type) for p_type, _ in params]
+    return_sig = get_type_sig(return_type)
+    return f"({''.join(param_sigs)}){return_sig}"
 
 def get_ctypes_signature(return_type, params):
-    """
-    Generate the ctypes function signature for a given method.
+    """Generates the ctypes CFUNCTYPE."""
+    def get_ctype(t_type):
+        if t_type.endswith("[]"):
+            return ctypes.c_void_p  # Arrays are objects (opaque pointers)
+        if t_type in type_map:
+            return type_map[t_type][1]
+        return ctypes.c_void_p      # Objects are void pointers
 
-    :param return_type: Return type of the method
-    :param params: List of tuples representing parameter types and their nullability
-                   e.g., ("String", True) for a nullable String parameter
-    :return: ctypes function signature
-    """
-    def get_ctypes_type(param_type):
-        if param_type in type_map:
-            return type_map[param_type][1]
-        elif param_type.endswith("[]"):
-            return ctypes.POINTER(get_ctypes_type(param_type[:-2]))
-        else:
-            return ctypes.c_void_p  # Custom types are represented as jobject (void pointer)
+    param_types = [get_ctype(p_type) for p_type, _ in params]
 
-    param_types = [get_ctypes_type(param_type) for param_type, _ in params]
-    return_type = get_ctypes_type(return_type)
+    # Handle return type
+    ret_type = None if return_type == "void" else get_ctype(return_type)
 
-    return ctypes.CFUNCTYPE(return_type, ctypes.c_void_p, ctypes.c_void_p, *param_types)
+    # Note: The first two arguments in JNI are always (JNIEnv*, jobject/jclass)
+    # We set them as c_void_p here.
+    return ctypes.CFUNCTYPE(ret_type, ctypes.c_void_p, ctypes.c_void_p, *param_types)
 
 def parse_method_declaration(declaration):
     """
-    Parse the Java method declaration to extract the method name, return type, and parameters.
-
-    :param declaration: Java method declaration string
-    :return: Tuple containing the method name, return type, and list of parameters with their nullability
+    Parses a Java method string regardless of modifier order.
+    Example: "private native static int foo(String s)"
     """
-    method_pattern = re.compile(r'public\s+static\s+native\s+(\w+)\s+(\w+)\((.*)\)')
-    match = method_pattern.match(declaration)
-    if not match:
-        raise ValueError("Invalid method declaration")
+    # 1. Separate Method Definition (left) from Parameters (right)
+    if '(' not in declaration or ')' not in declaration:
+        raise ValueError("Declaration must contain parenthesis '()'")
 
-    return_type = match.group(1)
-    method_name = match.group(2)
-    params_str = match.group(3)
+    def_part, params_part = declaration.split('(', 1)
+    params_part = params_part.rsplit(')', 1)[0] # remove trailing ')'
 
+    # 2. Tokenize the definition part (handling generics vaguely)
+    # We replace generic brackets with underscores temporarily to avoid splitting errors
+    # if users input "List<String>".
+    # (A real parser is better, but this suffices for single-line inputs)
+    clean_def = re.sub(r'<[^>]+>', '', def_part)
+    tokens = clean_def.split()
+
+    if len(tokens) < 2:
+        raise ValueError("Declaration too short. Needs at least ReturnType and MethodName.")
+
+    # In Java, the last token before '(' is the Method Name
+    method_name = tokens[-1]
+    # The second to last is the Return Type
+    return_type = tokens[-2]
+    # Everything else are modifiers
+    modifiers = tokens[:-2]
+
+    # Check for 'native'
+    if "native" not in modifiers:
+        print("Warning: 'native' keyword missing. Proceeding anyway...")
+
+    # Check for 'static'
+    is_static = "static" in modifiers
+
+    # 3. Parse Parameters
     params = []
-    if params_str:
-        param_pattern = re.compile(r'(@Nullable\s+)?(\w+)\s+(\w+)')
-        for param_match in param_pattern.finditer(params_str):
-            nullable = param_match.group(1) is not None
-            param_type = param_match.group(2)
-            params.append((param_type, nullable))
+    if params_part.strip():
+        # Split by comma
+        raw_params = params_part.split(',')
+        for raw_p in raw_params:
+            raw_p = raw_p.strip()
+            # Regex to grab type and name: "String arg0" or "int[] numbers"
+            # We ignore keywords like final or annotations for the signature
+            parts = raw_p.split()
+            if not parts: continue
 
-    return method_name, return_type, params
+            # Usually the type is the second-to-last word if modifiers exist,
+            # or first word if simple.
+            # Heuristic: The Type is the word immediately preceding the Variable Name.
+            if len(parts) >= 2:
+                p_type = parts[-2]
+            else:
+                p_type = parts[0] # Just a type, no variable name provided
 
-def generate_function_signature(declaration):
-    """
-    Generate the JNI and ctypes function signatures for a given method declaration.
+            params.append((p_type, False))
 
-    :param declaration: Java method declaration string
-    :return: Tuple containing the JNI signature and the ctypes function signature
-    """
-    method_name, return_type, params = parse_method_declaration(declaration)
-    jni_signature = get_jni_signature(return_type, params)
-    ctypes_signature = get_ctypes_signature(return_type, params)
-
-    return method_name, jni_signature, ctypes_signature
+    return method_name, return_type, params, is_static
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python jni_signature.py \"<Java method declaration>\"")
-        sys.exit(1)
+    if len(sys.argv) < 2:
+        print("Usage: python jni_sig.py \"<Java Declaration>\"")
+        print("\nExample Test:")
+        test_decl = "private native static int[] myMethod(int count, String msg)"
+        print(f"Input: {test_decl}")
 
-    declaration = sys.argv[1]
-    method_name, jni_signature, ctypes_signature = generate_function_signature(declaration)
-    print(f"Method Name: {method_name}")
-    print(f"JNI Signature: {jni_signature}")
-    print(f"ctypes Signature: {ctypes_signature}")
+        try:
+            name, ret, params, is_static = parse_method_declaration(test_decl)
+            jni = get_jni_signature(ret, params)
+            c_sig = get_ctypes_signature(ret, params)
+
+            print(f"Method: {name}")
+            print(f"Is Static: {is_static}")
+            print(f"JNI Sig: {jni}")
+            print(f"ctypes: {c_sig}")
+        except Exception as e:
+            print(e)
+        sys.exit(0)
+
+    decl = sys.argv[1]
+    try:
+        name, ret, params, is_static = parse_method_declaration(decl)
+        jni = get_jni_signature(ret, params)
+        c_sig = get_ctypes_signature(ret, params)
+
+        print(f"Method Name: {name}")
+        print(f"Is Static: {is_static}")
+        print(f"JNI Signature: {jni}")
+        print(f"ctypes Signature: {c_sig}")
+    except ValueError as e:
+        print(f"Error: {e}")

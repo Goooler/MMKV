@@ -43,15 +43,15 @@ class MMKVPluginPlatformFFI extends MMKVPluginPlatform {
   }
 
   @override
-  Pointer<Void> Function(Pointer<Utf8> mmapID, int, Pointer<Utf8> cryptKey, Pointer<Utf8> rootDir, int expectedCapacity, int isNameSpace) getMMKVWithIDFunc2() {
+  Pointer<Void> Function(Pointer<Utf8> mmapID, int, Pointer<Utf8> cryptKey, Pointer<Utf8> rootDir, int expectedCapacity, int isNameSpace, int aes256) getMMKVWithIDFunc2() {
     return nativeLib()
-        .lookup<NativeFunction<Pointer<Void> Function(Pointer<Utf8>, Uint32, Pointer<Utf8>, Pointer<Utf8>, Uint64, Int8)>>("getMMKVWithID2")
+        .lookup<NativeFunction<Pointer<Void> Function(Pointer<Utf8>, Uint32, Pointer<Utf8>, Pointer<Utf8>, Uint64, Int8, Int8)>>("getMMKVWithID2")
         .asFunction();
   }
 
   @override
-  Pointer<Void> Function(int, Pointer<Utf8> cryptKey) getDefaultMMKVFunc() {
-    return nativeLib().lookup<NativeFunction<Pointer<Void> Function(Uint32, Pointer<Utf8>)>>("getDefaultMMKV").asFunction();
+  Pointer<Void> Function(int, Pointer<Utf8> cryptKey, int aes256) getDefaultMMKVFunc() {
+    return nativeLib().lookup<NativeFunction<Pointer<Void> Function(Uint32, Pointer<Utf8>, Int8)>>("getDefaultMMKV").asFunction();
   }
 
   @override
@@ -149,8 +149,8 @@ class MMKVPluginPlatformFFI extends MMKVPluginPlatform {
   }
 
   @override
-  int Function(Pointer<Void>, Pointer<Uint8>, int) reKeyFunc() {
-    return nativeLib().lookup<NativeFunction<Int8 Function(Pointer<Void>, Pointer<Uint8>, Uint64)>>(nativeFuncName("reKey")).asFunction();
+  int Function(Pointer<Void>, Pointer<Uint8>, int length, int aes256) reKeyFunc() {
+    return nativeLib().lookup<NativeFunction<Int8 Function(Pointer<Void>, Pointer<Uint8>, Uint64, Int8)>>(nativeFuncName("reKey")).asFunction();
   }
 
   @override
@@ -159,9 +159,9 @@ class MMKVPluginPlatformFFI extends MMKVPluginPlatform {
   }
 
   @override
-  void Function(Pointer<Void>, Pointer<Uint8>, int) checkReSetCryptKeyFunc() {
+  void Function(Pointer<Void>, Pointer<Uint8>, int length, int aes256) checkReSetCryptKeyFunc() {
     return nativeLib()
-        .lookup<NativeFunction<Void Function(Pointer<Void>, Pointer<Uint8>, Uint64)>>(nativeFuncName("checkReSetCryptKey"))
+        .lookup<NativeFunction<Void Function(Pointer<Void>, Pointer<Uint8>, Uint64, Int8)>>(nativeFuncName("checkReSetCryptKey"))
         .asFunction();
   }
 

@@ -316,27 +316,27 @@ class _MyAppState extends State<MyApp> {
     print("is file valid: ${MMKV.isFileValid(mmkv.mmapID)}");
   }
 
-  MMKV testMMKV(String mmapID, String? cryptKey, bool decodeOnly, String? rootPath) {
-    final mmkv = MMKV(mmapID, cryptKey: cryptKey, rootDir: rootPath);
+  MMKV testMMKV(String mmapID, String? cryptKey, bool aes256, bool decodeOnly, String? rootPath) {
+    final mmkv = MMKV(mmapID, cryptKey: cryptKey, aes256: aes256, rootDir: rootPath);
     _testMMKVImp(mmkv, decodeOnly);
     return mmkv;
   }
 
   void testReKey() {
     const mmapID = "testAES_reKey1";
-    final MMKV kv = testMMKV(mmapID, null, false, null);
+    final MMKV kv = testMMKV(mmapID, null, false, false, null);
 
     kv.reKey("Key_seq_1");
     kv.clearMemoryCache();
-    testMMKV(mmapID, "Key_seq_1", true, null);
+    testMMKV(mmapID, "Key_seq_1", false, true, null);
 
-    kv.reKey("Key_seq_2");
+    kv.reKey("Key_Seq_Very_Looooooooong", aes256: true);
     kv.clearMemoryCache();
-    testMMKV(mmapID, "Key_seq_2", true, null);
+    testMMKV(mmapID, "Key_Seq_Very_Looooooooong", true, true, null);
 
     kv.reKey(null);
     kv.clearMemoryCache();
-    testMMKV(mmapID, null, true, null);
+    testMMKV(mmapID, null, false, true, null);
   }
 
   void testBackup() {
@@ -345,7 +345,7 @@ class _MyAppState extends State<MyApp> {
     const String mmapID = "test/AES";
     const String cryptKey = "Tencent MMKV";
     final String otherDir = "$rootDir/mmkv_3";
-    testMMKV(mmapID, cryptKey, false, otherDir);
+    testMMKV(mmapID, cryptKey, false, false, otherDir);
 
     final ret = MMKV.backupOneToDirectory(mmapID, backupRootDir, rootDir: otherDir);
     print("backup one [$mmapID] return: $ret");

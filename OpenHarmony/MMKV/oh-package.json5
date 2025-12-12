@@ -1,10 +1,10 @@
 {
   "name": "@tencent/mmkv",
-  "version": "2.2.3",
+  "version": "2.3.0",
   "description": "The official OpenHarmony package of MMKV. An efficient, small mobile key-value storage framework developed by WeChat.",
   "main": "Index.ets",
   "author": "guoling",
-  "license": "BSD 3-Clause",
+  "license": "MMKV is published under the BSD 3-Clause license. For details about 3rd components check out https://github.com/Tencent/MMKV/blob/master/LICENSE.TXT",
   "type": "module",
   "dependencies": {
     "libmmkv.so": "file:./src/main/cpp/types/libmmkv"

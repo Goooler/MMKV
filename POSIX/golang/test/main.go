@@ -33,9 +33,8 @@ func main() {
 
 	testExpectedCapacity()
 	functionalTest()
-	testReKey()
 
-	testMMKV("test/Encrypt", "cryptKey", false)
+	testMMKV("test/Encrypt", "cryptKey", false, false)
 	testBackup()
 	testRestore()
 	testAutoExpire()
@@ -43,6 +42,7 @@ func main() {
 	testRemoveStorage()
 	testReadOnly()
 	testImport()
+	testReKey()
 }
 
 func functionalTest() {
@@ -105,8 +105,8 @@ func functionalTest() {
 	kv.Close()
 }
 
-func testMMKV(mmapID string, cryptKey string, decodeOnly bool) mmkv.MMKV {
-	kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, cryptKey)
+func testMMKV(mmapID string, cryptKey string, decodeOnly bool, aes bool) mmkv.MMKV {
+	kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, cryptKey, aes)
 	testMMKVImp(kv, decodeOnly)
 	return kv
 }
@@ -167,22 +167,22 @@ func testMMKVImp(kv mmkv.MMKV, decodeOnly bool) {
 
 func testReKey() {
 	mmapID := "testAES_reKey1"
-	kv := testMMKV(mmapID, "", false)
+	kv := testMMKV(mmapID, "", false, false)
 	if kv == nil {
 		return
 	}
 
-	kv.ReKey("Key_seq_1")
+	kv.ReKey("Key_seq_1", false)
 	kv.ClearMemoryCache()
-	testMMKV(mmapID, "Key_seq_1", true)
+	testMMKV(mmapID, "Key_seq_1", true, false)
 
-	kv.ReKey("Key_seq_2")
+	kv.ReKey("Key_Seq_Very_Looooooooong", true)
 	kv.ClearMemoryCache()
-	testMMKV(mmapID, "Key_seq_2", true)
+	testMMKV(mmapID, "Key_Seq_Very_Looooooooong", true, true)
 
-	kv.ReKey("")
+	kv.ReKey("", false)
 	kv.ClearMemoryCache()
-	testMMKV(mmapID, "", true)
+	testMMKV(mmapID, "", true, false)
 }
 
 func testBackup() {
@@ -226,7 +226,7 @@ func testRestore() {
 	rootDir := "/tmp/mmkv_backup"
 	mmapID := "test/Encrypt"
 	aesKey := "cryptKey"
-	kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, aesKey)
+	kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, aesKey, false)
 	kv.SetString("string value before restore", "test_restore_key")
 	fmt.Println("before restore [", kv.MMAP_ID(), "] allKeys: ", kv.AllKeys())
 
@@ -239,7 +239,7 @@ func testRestore() {
 	count := mmkv.RestoreAllFromDirectory(rootDir)
 	fmt.Println("restore all count: ", count)
 	if count > 0 {
-		backupMMKV := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, aesKey)
+		backupMMKV := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, aesKey, false)
 		fmt.Println("check on restore [", backupMMKV.MMAP_ID(), "] allKeys: ", backupMMKV.AllKeys())
 
 		backupMMKV = mmkv.MMKVWithID("testAES_reKey1")
@@ -354,7 +354,7 @@ func testReadOnly() {
 	mmapID := "testReadOnly"
 	aesKey := "ReadOnly+Key"
 	{
-		kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, aesKey)
+		kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, mmkv.MMKV_SINGLE_PROCESS, aesKey, false)
 		testMMKVImp(kv, false)
 		kv.Close()
 	}
@@ -363,7 +363,7 @@ func testReadOnly() {
 	crcPath := path + ".crc"
 	os.Chmod(crcPath, 0444)
 	{
-		kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, (mmkv.MMKV_SINGLE_PROCESS | mmkv.MMKV_READ_ONLY), aesKey)
+		kv := mmkv.MMKVWithIDAndModeAndCryptKey(mmapID, (mmkv.MMKV_SINGLE_PROCESS | mmkv.MMKV_READ_ONLY), aesKey, false)
 		testMMKVImp(kv, true)
 
 		// also check if it tolerate update operations without crash

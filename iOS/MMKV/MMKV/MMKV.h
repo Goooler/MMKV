@@ -89,6 +89,10 @@ class MMKV;
 /// an encrypted generic purpose instance (in MMKVSingleProcess mode)
 + (nullable instancetype)defaultMMKVWithCryptKey:(nullable NSData *)cryptKey;
 
+/// an encrypted generic purpose instance (in MMKVSingleProcess mode)
+/// @param aes256 use aes 256 key length
++ (nullable instancetype)defaultMMKVWithCryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256;
+
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 + (nullable instancetype)mmkvWithID:(NSString *)mmapID NS_SWIFT_NAME(init(mmapID:));
 
@@ -105,9 +109,20 @@ class MMKV;
 + (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey NS_SWIFT_NAME(init(mmapID:cryptKey:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
++ (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 NS_SWIFT_NAME(init(mmapID:cryptKey:aes256:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param cryptKey 16 bytes at most
 /// @param expectedCapacity the file size you expected when opening or creating file
 + (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey expectedCapacity:(size_t)expectedCapacity NS_SWIFT_NAME(init(mmapID:cryptKey:expectedCapacity:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+/// @param expectedCapacity the file size you expected when opening or creating file
++ (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 expectedCapacity:(size_t)expectedCapacity NS_SWIFT_NAME(init(mmapID:cryptKey:aes256:expectedCapacity:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param cryptKey 16 bytes at most
@@ -115,8 +130,10 @@ class MMKV;
 + (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey mode:(MMKVMode)mode NS_SWIFT_NAME(init(mmapID:cryptKey:mode:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
-/// @param relativePath custom path of the file, `NSDocumentDirectory/mmkv` by default
-+ (nullable instancetype)mmkvWithID:(NSString *)mmapID relativePath:(nullable NSString *)relativePath NS_SWIFT_NAME(init(mmapID:relativePath:)) __attribute__((deprecated("use +mmkvWithID:rootPath: instead")));
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+/// @param mode MMKVReadOnly for readonly MMKV, MMKVMultiProcess for multi-process MMKV
++ (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 mode:(MMKVMode)mode NS_SWIFT_NAME(init(mmapID:cryptKey:aes256:mode:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param rootPath custom path of the file, `NSDocumentDirectory/mmkv` by default
@@ -129,13 +146,14 @@ class MMKV;
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param cryptKey 16 bytes at most
-/// @param relativePath custom path of the file, `NSDocumentDirectory/mmkv` by default
-+ (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey relativePath:(nullable NSString *)relativePath NS_SWIFT_NAME(init(mmapID:cryptKey:relativePath:)) __attribute__((deprecated("use +mmkvWithID:cryptKey:rootPath: instead")));
-
-/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
-/// @param cryptKey 16 bytes at most
 /// @param rootPath custom path of the file, `NSDocumentDirectory/mmkv` by default
 + (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey rootPath:(nullable NSString *)rootPath NS_SWIFT_NAME(init(mmapID:cryptKey:rootPath:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+/// @param rootPath custom path of the file, `NSDocumentDirectory/mmkv` by default
++ (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 rootPath:(nullable NSString *)rootPath NS_SWIFT_NAME(init(mmapID:cryptKey:aes256:rootPath:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param cryptKey 16 bytes at most
@@ -149,6 +167,14 @@ class MMKV;
 /// @param mode MMKVReadOnly for readonly MMKV, MMKVMultiProcess for multi-process MMKV
 /// @param expectedCapacity the file size you expected when opening or creating file
 + (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey rootPath:(nullable NSString *)rootPath mode:(MMKVMode)mode expectedCapacity:(size_t)expectedCapacity NS_SWIFT_NAME(init(mmapID:cryptKey:rootPath:mode:expectedCapacity:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+/// @param rootPath custom path of the file, `NSDocumentDirectory/mmkv` by default
+/// @param mode MMKVReadOnly for readonly MMKV, MMKVMultiProcess for multi-process MMKV
+/// @param expectedCapacity the file size you expected when opening or creating file
++ (nullable instancetype)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 rootPath:(nullable NSString *)rootPath mode:(MMKVMode)mode expectedCapacity:(size_t)expectedCapacity  NS_SWIFT_NAME(init(mmapID:cryptKey:aes256:rootPath:mode:expectedCapacity:));
 
 /// you can call this on applicationWillTerminate, it's totally fine if you don't call
 + (void)onAppTerminate;
@@ -174,12 +200,27 @@ class MMKV;
 
 /// transform plain text into encrypted text, or vice versa by passing newKey = nil
 /// you can change existing crypt key with different key
+/// @param newKey 16 bytes at most
 - (BOOL)reKey:(nullable NSData *)newKey NS_SWIFT_NAME(reset(cryptKey:));
+
+/// transform plain text into encrypted text, or vice versa by passing newKey = nil
+/// you can change existing crypt key with different key
+/// @param newKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+- (BOOL)reKey:(nullable NSData *)newKey aes256:(BOOL)aes256 NS_SWIFT_NAME(reset(cryptKey:aes256:));
+
 - (nullable NSData *)cryptKey;
 
 /// just reset cryptKey (will not encrypt or decrypt anything)
 /// usually you should call this method after other process reKey() the multi-process mmkv
+/// @param cryptKey 16 bytes at most
 - (void)checkReSetCryptKey:(nullable NSData *)cryptKey NS_SWIFT_NAME(checkReSet(cryptKey:));
+
+/// just reset cryptKey (will not encrypt or decrypt anything)
+/// usually you should call this method after other process reKey() the multi-process mmkv
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+- (void)checkReSetCryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 NS_SWIFT_NAME(checkReSet(cryptKey:aes256:));
 
 - (BOOL)setObject:(nullable NSObject<NSCoding> *)object forKey:(NSString *)key NS_SWIFT_NAME(set(_:forKey:));
 - (BOOL)setObject:(nullable NSObject<NSCoding> *)object forKey:(NSString *)key expireDuration:(uint32_t)seconds NS_SWIFT_NAME(set(_:forKey:expireDuration:));
@@ -446,14 +487,31 @@ class MMKV;
 - (nullable MMKV *)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey NS_SWIFT_NAME(mmkv(mmapID:cryptKey:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+- (nullable MMKV *)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 NS_SWIFT_NAME(mmkv(mmapID:cryptKey:aes256:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param cryptKey 16 bytes at most
 /// @param expectedCapacity the file size you expected when opening or creating file
 - (nullable MMKV *)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey expectedCapacity:(size_t)expectedCapacity NS_SWIFT_NAME(mmkv(mmapID:cryptKey:expectedCapacity:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+/// @param expectedCapacity the file size you expected when opening or creating file
+- (nullable MMKV *)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 expectedCapacity:(size_t)expectedCapacity NS_SWIFT_NAME(mmkv(mmapID:cryptKey:aes256:expectedCapacity:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param cryptKey 16 bytes at most
 /// @param mode MMKVReadOnly for readonly MMKV, MMKVMultiProcess for multi-process MMKV
 - (nullable MMKV *)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey mode:(MMKVMode)mode NS_SWIFT_NAME(mmkv(mmapID:cryptKey:mode:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+/// @param cryptKey 32 bytes at most
+/// @param aes256 use aes 256 key length
+/// @param mode MMKVReadOnly for readonly MMKV, MMKVMultiProcess for multi-process MMKV
+- (nullable MMKV *)mmkvWithID:(NSString *)mmapID cryptKey:(nullable NSData *)cryptKey aes256:(BOOL)aes256 mode:(MMKVMode)mode NS_SWIFT_NAME(mmkv(mmapID:cryptKey:aes256:mode:));
 
 /// backup one MMKV instance from the customize root path to dstDir
 /// @param mmapID the MMKV ID to backup

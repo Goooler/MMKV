@@ -42,7 +42,8 @@ MMKV_EXPORT void *mmkvInitialize(const char *rootDir, const char *groupDir, int3
     return (void*) ret.UTF8String;
 }
 
-MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, uint32_t mode, const char *cryptKey, const char *rootPath, size_t expectedCapacity, bool isNameSpace) {
+MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, uint32_t mode, const char *cryptKey, const char *rootPath,
+                                 size_t expectedCapacity, bool isNameSpace, bool aes256) {
     MMKV *kv = nil;
     if (!mmapID) {
         return (__bridge void *) kv;
@@ -58,12 +59,12 @@ MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, uint32_t mode, const char *
                 auto path = [NSString stringWithUTF8String:rootPath];
                 if (isNameSpace) {
                     auto ns = [MMKV nameSpace:path];
-                    kv = [ns mmkvWithID:str cryptKey:cryptKeyData expectedCapacity:expectedCapacity];
+                    kv = [ns mmkvWithID:str cryptKey:cryptKeyData aes256:aes256 expectedCapacity:expectedCapacity];
                 } else {
-                    kv = [MMKV mmkvWithID:str cryptKey:cryptKeyData rootPath:path expectedCapacity:expectedCapacity];
+                    kv = [MMKV mmkvWithID:str cryptKey:cryptKeyData aes256:aes256 rootPath:path mode:(MMKVMode) mode expectedCapacity:expectedCapacity];
                 }
             } else {
-                kv = [MMKV mmkvWithID:str cryptKey:cryptKeyData mode:(MMKVMode) mode];
+                kv = [MMKV mmkvWithID:str cryptKey:cryptKeyData aes256:aes256 mode:(MMKVMode) mode];
             }
             done = true;
         }
@@ -86,17 +87,17 @@ MMKV_EXPORT void *getMMKVWithID2(const char *mmapID, uint32_t mode, const char *
 }
 
 MMKV_EXPORT void *getMMKVWithID(const char *mmapID, uint32_t mode, const char *cryptKey, const char *rootPath, size_t expectedCapacity) {
-    return getMMKVWithID2(mmapID, mode, cryptKey, rootPath, expectedCapacity, false);
+    return getMMKVWithID2(mmapID, mode, cryptKey, rootPath, expectedCapacity, false, false);
 }
 
-MMKV_EXPORT int64_t getDefaultMMKV(int /*mode*/, const char *cryptKey) {
+MMKV_EXPORT int64_t getDefaultMMKV(int /*mode*/, const char *cryptKey, bool aes256) {
     MMKV *kv = nil;
 
     if (cryptKey) {
         auto crypt = [NSString stringWithUTF8String:cryptKey];
         auto cryptKeyData = [crypt dataUsingEncoding:NSUTF8StringEncoding];
         if (cryptKeyData.length > 0) {
-            kv = [MMKV defaultMMKVWithCryptKey:cryptKeyData];
+            kv = [MMKV defaultMMKVWithCryptKey:cryptKeyData aes256:aes256];
         }
     }
     if (!kv) {
@@ -269,14 +270,14 @@ MMKV_EXPORT void *MMKV_FUNC(decodeBytes)(const void *handle, const char *oKey, u
     return nullptr;
 }
 
-MMKV_EXPORT bool MMKV_FUNC(reKey)(const void *handle, char *oKey, uint64_t length) {
+MMKV_EXPORT bool MMKV_FUNC(reKey)(const void *handle, char *oKey, uint64_t length, bool aes256) {
     MMKV *kv = (__bridge MMKV *) handle;
     if (kv) {
         if (oKey && length > 0) {
             NSData *key = [NSData dataWithBytesNoCopy:oKey length:length freeWhenDone:NO];
-            return [kv reKey:key];
+            return [kv reKey:key aes256:aes256];
         } else {
-            return [kv reKey:nil];
+            return [kv reKey:nil aes256:aes256];
         }
     }
     return false;
@@ -298,14 +299,14 @@ MMKV_EXPORT void *MMKV_FUNC(cryptKey)(const void *handle, uint64_t *lengthPtr) {
     return nullptr;
 }
 
-MMKV_EXPORT void MMKV_FUNC(checkReSetCryptKey)(const void *handle, char *oKey, uint64_t length) {
+MMKV_EXPORT void MMKV_FUNC(checkReSetCryptKey)(const void *handle, char *oKey, uint64_t length, bool aes256) {
     MMKV *kv = (__bridge MMKV *) handle;
     if (kv) {
         if (oKey && length > 0) {
             NSData *key = [NSData dataWithBytesNoCopy:oKey length:length freeWhenDone:NO];
-            [kv checkReSetCryptKey:key];
+            [kv checkReSetCryptKey:key aes256:aes256];
         } else {
-            [kv checkReSetCryptKey:nil];
+            [kv checkReSetCryptKey:nil aes256:aes256];
         }
     }
 }

@@ -1,7 +1,7 @@
 Pod::Spec.new do |s|
 
   s.name         = "MMKVWatchExtension"
-  s.version      = "2.2.3"
+  s.version      = "2.3.0"
   s.summary      = "MMKV is a cross-platform key-value storage framework developed by WeChat."
   s.module_name  = "MMKVWatchExtension"
 
@@ -29,9 +29,10 @@ Pod::Spec.new do |s|
     "CLANG_CXX_LIBRARY" => "libc++",
     "CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF" => "NO",
     "GCC_PREPROCESSOR_DEFINITIONS" => "MMKV_IOS_EXTENSION",
+    'EXCLUDED_ARCHS[sdk=watchos*]' => 'armv7k',
   }
 
-  s.dependency 'MMKVCore', '~> 2.2.3'
+  s.dependency 'MMKVCore', '~> 2.3.0'
 
 end
 

@@ -116,12 +116,12 @@ public class MainActivity extends AppCompatActivity {
         });
 
         String otherDir = getFilesDir().getAbsolutePath() + "/mmkv_3";
-        MMKV kv = testMMKV("test/AES", "Tencent MMKV", false, otherDir);
+        MMKV kv = testMMKV("test/AES", "Tencent MMKV", false, false, otherDir);
         kv.checkContentChangedByOuterProcess();
         kv.close();
 
         // prepare for backup customize root path
-        kv = testMMKV("test_backup", "MMKV Backup", false, otherDir);
+        kv = testMMKV("test_backup", "MMKV Backup", false, false, otherDir);
         kv.close();
 
         testAshmem();
@@ -230,9 +230,9 @@ public class MainActivity extends AppCompatActivity {
         Log.d("mmkv", "" + value);
     }
 
-    private MMKV testMMKV(String mmapID, String cryptKey, boolean decodeOnly, String rootPath) {
+    private MMKV testMMKV(String mmapID, String cryptKey, boolean aes256, boolean decodeOnly, String rootPath) {
         //MMKV kv = MMKV.defaultMMKV();
-        MMKV kv = MMKV.mmkvWithID(mmapID, MMKV.SINGLE_PROCESS_MODE, cryptKey, rootPath);
+        MMKV kv = MMKV.mmkvWithID(mmapID, MMKV.SINGLE_PROCESS_MODE, cryptKey, aes256, rootPath);
         testMMKV(kv, decodeOnly);
         Log.i("MMKV", "isFileValid[" + kv.mmapID() + "]: " + MMKV.isFileValid(kv.mmapID(), rootPath));
         return kv;
@@ -360,19 +360,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void testReKey() {
         final String mmapID = "test/AES_reKey1";
-        MMKV kv = testMMKV(mmapID, null, false, null);
+        MMKV kv = testMMKV(mmapID, null, false, false, null);
 
         kv.reKey("Key_seq_1");
         kv.clearMemoryCache();
-        testMMKV(mmapID, "Key_seq_1", true, null);
+        testMMKV(mmapID, "Key_seq_1", false, true, null);
 
-        kv.reKey("Key_seq_2");
+        kv.reKey("Key_Seq_Very_Looooooooong", true);
         kv.clearMemoryCache();
-        testMMKV(mmapID, "Key_seq_2", true, null);
+        testMMKV(mmapID, "Key_Seq_Very_Looooooooong", true, true, null);
 
         kv.reKey(null);
         kv.clearMemoryCache();
-        testMMKV(mmapID, null, true, null);
+        testMMKV(mmapID, null, false, true, null);
     }
 
     private void interProcessBaselineTest(String cmd) {

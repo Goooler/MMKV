@@ -390,7 +390,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, null, 0);
+        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, null, 0, false);
         return checkProcessMode(handle, mmapID, SINGLE_PROCESS_MODE);
     }
 
@@ -407,7 +407,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, mode, null, null, 0);
+        long handle = getMMKVWithID(mmapID, mode, null, null, 0, false);
         return checkProcessMode(handle, mmapID, mode);
     }
 
@@ -425,7 +425,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, mode, null, null, expectedCapacity);
+        long handle = getMMKVWithID(mmapID, mode, null, null, expectedCapacity, false);
         return checkProcessMode(handle, mmapID, mode);
     }
 
@@ -443,7 +443,26 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, null, 0);
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, null, 0, false);
+        return checkProcessMode(handle, mmapID, mode);
+    }
+
+    /**
+     * Create an MMKV instance in customize process mode, with an encryption key.
+     *
+     * @param mmapID   The unique ID of the MMKV instance.
+     * @param mode     The process mode of the MMKV instance, defaults to {@link #SINGLE_PROCESS_MODE}.
+     * @param cryptKey The encryption key of the MMKV instance (no more than 32 bytes).
+     * @param aes256 Use AES 256 key length
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256) throws RuntimeException {
+        if (rootDir == null) {
+            throw new IllegalStateException("You should Call MMKV.initialize() first.");
+        }
+
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, null, 0, aes256);
         return checkProcessMode(handle, mmapID, mode);
     }
 
@@ -460,7 +479,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, rootPath, 0);
+        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, rootPath, 0, false);
         return checkProcessMode(handle, mmapID, SINGLE_PROCESS_MODE);
     }
 
@@ -478,7 +497,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, rootPath, expectedCapacity);
+        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, rootPath, expectedCapacity, false);
         return checkProcessMode(handle, mmapID, SINGLE_PROCESS_MODE);
     }
 
@@ -499,7 +518,29 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, expectedCapacity);
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, expectedCapacity, false);
+        return checkProcessMode(handle, mmapID, mode);
+    }
+
+    /**
+     * Create an MMKV instance with customize settings all in one.
+     *
+     * @param mmapID   The unique ID of the MMKV instance.
+     * @param mode     The process mode of the MMKV instance, defaults to {@link #SINGLE_PROCESS_MODE}.
+     * @param cryptKey The encryption key of the MMKV instance (no more than 32 bytes).
+     * @param aes256   Use AES 256 key length
+     * @param rootPath The folder of the MMKV instance, defaults to $(FilesDir)/mmkv.
+     * @param expectedCapacity The file size you expected when opening or creating file
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256, String rootPath,
+                                  long expectedCapacity) throws RuntimeException {
+        if (rootDir == null) {
+            throw new IllegalStateException("You should Call MMKV.initialize() first.");
+        }
+
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, expectedCapacity, aes256);
         return checkProcessMode(handle, mmapID, mode);
     }
 
@@ -519,7 +560,28 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0);
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, false);
+        return checkProcessMode(handle, mmapID, mode);
+    }
+
+    /**
+     * Create an MMKV instance with customize settings all in one.
+     *
+     * @param mmapID   The unique ID of the MMKV instance.
+     * @param mode     The process mode of the MMKV instance, defaults to {@link #SINGLE_PROCESS_MODE}.
+     * @param cryptKey The encryption key of the MMKV instance (no more than 32 bytes).
+     * @param aes256   Use AES 256 key length.
+     * @param rootPath The folder of the MMKV instance, defaults to $(FilesDir)/mmkv.
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256, String rootPath)
+            throws RuntimeException {
+        if (rootDir == null) {
+            throw new IllegalStateException("You should Call MMKV.initialize() first.");
+        }
+
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, aes256);
         return checkProcessMode(handle, mmapID, mode);
     }
 
@@ -540,7 +602,29 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
         }
 
         mode |= BACKUP_MODE;
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0);
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, false);
+        return checkProcessMode(handle, mmapID, mode);
+    }
+
+    /**
+     * Get an backed-up MMKV instance with customize settings all in one.
+     *
+     * @param mmapID   The unique ID of the MMKV instance.
+     * @param mode     The process mode of the MMKV instance, defaults to {@link #SINGLE_PROCESS_MODE}.
+     * @param cryptKey The encryption key of the MMKV instance (no more than 32 bytes).
+     * @param aes256   Use AES 256 key length.
+     * @param rootPath The backup folder of the MMKV instance.
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV backedUpMMKVWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256, String rootPath)
+            throws RuntimeException {
+        if (rootDir == null) {
+            throw new IllegalStateException("You should Call MMKV.initialize() first.");
+        }
+
+        mode |= BACKUP_MODE;
+        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, aes256);
         return checkProcessMode(handle, mmapID, mode);
     }
 
@@ -558,6 +642,24 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV mmkvWithAshmemID(Context context, String mmapID, int size, int mode, @Nullable String cryptKey)
             throws RuntimeException {
+        return mmkvWithAshmemID(context, mmapID, size, mode, cryptKey, false);
+    }
+
+    /**
+     * Create an MMKV instance base on Anonymous Shared Memory, aka not synced to any disk files.
+     *
+     * @param context  The context of Android App, usually from Application.
+     * @param mmapID   The unique ID of the MMKV instance.
+     * @param size     The maximum size of the underlying Anonymous Shared Memory.
+     *                 Anonymous Shared Memory on Android can't grow dynamically, must set an appropriate size on creation.
+     * @param mode     The process mode of the MMKV instance, defaults to {@link #SINGLE_PROCESS_MODE}.
+     * @param cryptKey The encryption key of the MMKV instance (no more than 32 bytes).
+     * @param aes256   Use AES 256 key length.
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV mmkvWithAshmemID(Context context, String mmapID, int size, int mode, @Nullable String cryptKey,
+                                        boolean aes256) throws RuntimeException {
         if (rootDir == null) {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
@@ -601,7 +703,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
         simpleLog(MMKVLogLevel.LevelInfo, "getting mmkv in main process");
 
         mode = mode | ASHMEM_MODE;
-        long handle = getMMKVWithIDAndSize(mmapID, size, mode, cryptKey);
+        long handle = getMMKVWithIDAndSize(mmapID, size, mode, cryptKey, aes256);
         if (handle != 0) {
             return new MMKV(handle);
         }
@@ -619,7 +721,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getDefaultMMKV(SINGLE_PROCESS_MODE, null);
+        long handle = getDefaultMMKV(SINGLE_PROCESS_MODE, null, false);
         return checkProcessMode(handle, "DefaultMMKV", SINGLE_PROCESS_MODE);
     }
 
@@ -632,11 +734,24 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV defaultMMKV(int mode, @Nullable String cryptKey) throws RuntimeException {
+        return defaultMMKV(mode, cryptKey, false);
+    }
+
+    /**
+     * Create the default MMKV instance in customize process mode, with an encryption key.
+     *
+     * @param mode     The process mode of the MMKV instance, defaults to {@link #SINGLE_PROCESS_MODE}.
+     * @param cryptKey The encryption key of the MMKV instance (no more than 32 bytes).
+     * @param aes256   Use AES 256 key length.
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV defaultMMKV(int mode, @Nullable String cryptKey, boolean aes256) throws RuntimeException {
         if (rootDir == null) {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getDefaultMMKV(mode, cryptKey);
+        long handle = getDefaultMMKV(mode, cryptKey, aes256);
         return checkProcessMode(handle, "DefaultMMKV", mode);
     }
 
@@ -709,7 +824,22 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      * @param cryptKey The new encryption key (no more than 16 bytes).
      * @return True if success, otherwise False.
      */
-    public native boolean reKey(@Nullable String cryptKey);
+    public boolean reKey(@Nullable String cryptKey) {
+        return doReKey(cryptKey, false);
+    }
+
+    /**
+     * Transform plain text into encrypted text, or vice versa by passing a null encryption key.
+     * You can also change existing crypt key with a different cryptKey.
+     *
+     * @param cryptKey The new encryption key (no more than 32 bytes).
+     * @param aes256 Use AES 256 key length
+     * @return True if success, otherwise False.
+     */
+    public boolean reKey(@Nullable String cryptKey, boolean aes256) {
+        return doReKey(cryptKey, aes256);
+    }
+    private native boolean doReKey(@Nullable String cryptKey, boolean aes256);
 
     /**
      * Just reset the encryption key (will not encrypt or decrypt anything).
@@ -717,7 +847,21 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      *
      * @param cryptKey The new encryption key (no more than 16 bytes).
      */
-    public native void checkReSetCryptKey(@Nullable String cryptKey);
+    public void checkReSetCryptKey(@Nullable String cryptKey) {
+        doCheckReSetCryptKey(cryptKey, false);
+    }
+
+    /**
+     * Just reset the encryption key (will not encrypt or decrypt anything).
+     * Usually you should call this method after another process has {@link #reKey(String)} the multi-process MMKV instance.
+     *
+     * @param cryptKey The new encryption key (no more than 16 bytes).
+     * @param aes256 Use AES 256 key length
+     */
+    public void checkReSetCryptKey(@Nullable String cryptKey, boolean aes256) {
+        doCheckReSetCryptKey(cryptKey, aes256);
+    }
+    private native void doCheckReSetCryptKey(@Nullable String cryptKey, boolean aes256);
 
     /**
      * @return The device's memory page size.
@@ -1570,7 +1714,25 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     @Contract("_, _, _, _ -> new")
     public static MMKV mmkvWithAshmemFD(String mmapID, int fd, int metaFD, String cryptKey) throws RuntimeException {
-        long handle = getMMKVWithAshmemFD(mmapID, fd, metaFD, cryptKey);
+        return mmkvWithAshmemFD(mmapID, fd, metaFD, cryptKey, false);
+    }
+
+    /**
+     * Get an ashmem MMKV instance that has been initiated by another process.
+     * Normally you should just call {@link #mmkvWithAshmemID(Context, String, int, int, String)} instead.
+     *
+     * @param mmapID   The unique ID of the MMKV instance.
+     * @param fd       The file descriptor of the ashmem of the MMKV file, transferred from another process by binder.
+     * @param metaFD   The file descriptor of the ashmem of the MMKV crc file, transferred from another process by binder.
+     * @param cryptKey The encryption key of the MMKV instance (no more than 32 bytes).
+     * @param aes256   Use AES 256 key length.
+     * @throws RuntimeException If any failure in JNI or runtime.
+     */
+    // Parcelable
+    @NonNull
+    @Contract("_, _, _, _, _ -> new")
+    public static MMKV mmkvWithAshmemFD(String mmapID, int fd, int metaFD, String cryptKey, boolean aes256) throws RuntimeException {
+        long handle = getMMKVWithAshmemFD(mmapID, fd, metaFD, cryptKey, aes256);
         if (handle == 0) {
             throw new RuntimeException("Fail to create an ashmem MMKV instance [" + mmapID + "] in JNI");
         }
@@ -1758,13 +1920,13 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
 
     native static long
     getMMKVWithID(String mmapID, int mode, @Nullable String cryptKey, @Nullable String rootPath,
-                  long expectedCapacity);
+                  long expectedCapacity, boolean aes256);
 
-    private native static long getMMKVWithIDAndSize(String mmapID, int size, int mode, @Nullable String cryptKey);
+    private native static long getMMKVWithIDAndSize(String mmapID, int size, int mode, @Nullable String cryptKey, boolean aes256);
 
-    private native static long getDefaultMMKV(int mode, @Nullable String cryptKey);
+    private native static long getDefaultMMKV(int mode, @Nullable String cryptKey, boolean aes256);
 
-    private native static long getMMKVWithAshmemFD(String mmapID, int fd, int metaFD, @Nullable String cryptKey);
+    private native static long getMMKVWithAshmemFD(String mmapID, int fd, int metaFD, @Nullable String cryptKey, boolean aes256);
 
     private native boolean encodeBool(long handle, String key, boolean value);
 

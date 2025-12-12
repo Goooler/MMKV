@@ -286,6 +286,28 @@ def test_namespace():
     kv = ns.mmkvWithID("test_namespace")
     functional_test_imp(kv, False)
 
+def test_rekey():
+    mmap_id = "test/AES_reKey1"
+    kv = mmkv.MMKV(mmap_id, mmkv.MMKVMode.SingleProcess)
+    functional_test_imp(kv, False)
+
+    crypt_key = "Key_seq_1"
+    kv.reKey(crypt_key)
+    kv.clearMemoryCache()
+    kv = mmkv.MMKV(mmap_id, mmkv.MMKVMode.SingleProcess, crypt_key)
+    functional_test_imp(kv, True)
+
+    crypt_key2 = "Key_Seq_Very_Looooooooong"
+    kv.reKey(crypt_key2, True)
+    kv.clearMemoryCache()
+    kv = mmkv.MMKV(mmap_id, mmkv.MMKVMode.SingleProcess, crypt_key2, aes256 = True)
+    functional_test_imp(kv, True)
+
+    kv.reKey("")
+    kv.clearMemoryCache()
+    kv = mmkv.MMKV(mmap_id, mmkv.MMKVMode.SingleProcess)
+    functional_test_imp(kv, True)
+
 def logger(log_level, file, line, function, message):
     level = {mmkv.MMKVLogLevel.NoLog: 'N',
              mmkv.MMKVLogLevel.Debug: 'D',
@@ -338,6 +360,7 @@ if __name__ == '__main__':
     test_remove_storage()
     test_read_only()
     test_import()
+    test_rekey()
 
     # mmkv.MMKV.unRegisterLogHandler()
     # mmkv.MMKV.unRegisterErrorHandler()

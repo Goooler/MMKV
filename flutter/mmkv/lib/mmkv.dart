@@ -152,9 +152,9 @@ class NameSpace {
   /// * If you want a per-user mmkv, you could merge user-id within [mmapID].
   /// * You can get a multi-process MMKV instance by passing [MMKVMode.MULTI_PROCESS_MODE].
   /// * You can encrypt with [cryptKey], which limits to 16 bytes at most.
-  MMKV mmkv(String mmapID, {MMKVMode mode = MMKVMode.SINGLE_PROCESS_MODE, String? cryptKey, int expectedCapacity = 0
+  MMKV mmkv(String mmapID, {MMKVMode mode = MMKVMode.SINGLE_PROCESS_MODE, String? cryptKey, bool aes256 = false, int expectedCapacity = 0
     , bool readOnly = false}) {
-    final kv = MMKV._init(mmapID, mode: mode, cryptKey: cryptKey, rootDir: rootDir, expectedCapacity: expectedCapacity, readOnly: readOnly, fromNameSpace: true);
+    final kv = MMKV._init(mmapID, mode: mode, cryptKey: cryptKey, aes256:aes256, rootDir: rootDir, expectedCapacity: expectedCapacity, readOnly: readOnly, fromNameSpace: true);
     return kv;
   }
 
@@ -268,11 +268,11 @@ class MMKV {
   /// ```dart
   /// var mmkv = MMKV.defaultMMKV(cryptKey: '\u{2}U');
   /// ```
-  static MMKV defaultMMKV({String? cryptKey}) {
+  static MMKV defaultMMKV({String? cryptKey, bool aes256 = false}) {
     final mmkv = MMKV("");
     final cryptKeyPtr = _string2Pointer(cryptKey);
     const mode = MMKVMode.SINGLE_PROCESS_MODE;
-    mmkv._handle = _getDefaultMMKV(mode.index, cryptKeyPtr);
+    mmkv._handle = _getDefaultMMKV(mode.index, cryptKeyPtr, _bool2Int(aes256));
     if (mmkv._handle == nullptr) {
       throw StateError("Invalid state, forget initialize MMKV first?");
     }
@@ -286,19 +286,19 @@ class MMKV {
   /// * You can get a multi-process MMKV instance by passing [MMKVMode.MULTI_PROCESS_MODE].
   /// * You can encrypt with [cryptKey], which limits to 16 bytes at most.
   /// * You can customize the [rootDir] of the file.
-  MMKV(String mmapID, {MMKVMode mode = MMKVMode.SINGLE_PROCESS_MODE, String? cryptKey, String? rootDir, int expectedCapacity = 0
+  MMKV(String mmapID, {MMKVMode mode = MMKVMode.SINGLE_PROCESS_MODE, String? cryptKey, bool aes256 = false, String? rootDir, int expectedCapacity = 0
     , bool readOnly = false}) :
-    this._init(mmapID, mode: mode, cryptKey: cryptKey, rootDir: rootDir, expectedCapacity: expectedCapacity, readOnly: readOnly, fromNameSpace: false);
+    this._init(mmapID, mode: mode, cryptKey: cryptKey, aes256: aes256, rootDir: rootDir, expectedCapacity: expectedCapacity, readOnly: readOnly, fromNameSpace: false);
 
   MMKV._init(String mmapID, {MMKVMode mode = MMKVMode.SINGLE_PROCESS_MODE, String? cryptKey, String? rootDir, int expectedCapacity = 0
-    , bool readOnly = false, bool fromNameSpace = false}) {
+    , bool readOnly = false, bool fromNameSpace = false, bool aes256 = false}) {
     if (mmapID.isNotEmpty) {
       final mmapIDPtr = _string2Pointer(mmapID);
       final cryptKeyPtr = _string2Pointer(cryptKey);
       final rootDirPtr = _string2Pointer(rootDir);
 
       final realMode = readOnly ? (mode.index | _READ_ONLY_MODE) : mode.index;
-      _handle = _getMMKVWithID2(mmapIDPtr, realMode, cryptKeyPtr, rootDirPtr, expectedCapacity, _bool2Int(fromNameSpace));
+      _handle = _getMMKVWithID2(mmapIDPtr, realMode, cryptKeyPtr, rootDirPtr, expectedCapacity, _bool2Int(fromNameSpace), _bool2Int(aes256));
       if (_handle == nullptr) {
         throw StateError("Invalid state, forget initialize MMKV first?");
       }
@@ -504,14 +504,14 @@ class MMKV {
   /// * You can transfer a plain-text MMKV into encrypted by setting an non-null, non-empty [cryptKey].
   /// * Or vice versa by passing [cryptKey] with null.
   /// See also [checkReSetCryptKey()].
-  bool reKey(String? cryptKey) {
+  bool reKey(String? cryptKey, {bool aes256 = false}) {
     if (cryptKey != null && cryptKey.isNotEmpty) {
       final bytes = MMBuffer.fromList(const Utf8Encoder().convert(cryptKey))!;
-      final ret = _reKey(_handle, bytes.pointer!, bytes.length);
+      final ret = _reKey(_handle, bytes.pointer!, bytes.length, _bool2Int(aes256));
       bytes.destroy();
       return _int2Bool(ret);
     } else {
-      final ret = _reKey(_handle, nullptr, 0);
+      final ret = _reKey(_handle, nullptr, 0, 0);
       return _int2Bool(ret);
     }
   }
@@ -532,9 +532,9 @@ class MMKV {
 
   /// Just reset the [cryptKey] (will not encrypt or decrypt anything).
   /// Usually you should call this method after other process [reKey()] the multi-process mmkv.
-  void checkReSetCryptKey(String cryptKey) {
+  void checkReSetCryptKey(String cryptKey, {bool aes256 = false}) {
     final bytes = MMBuffer.fromList(const Utf8Encoder().convert(cryptKey))!;
-    _checkReSetCryptKey(_handle, bytes.pointer!, bytes.length);
+    _checkReSetCryptKey(_handle, bytes.pointer!, bytes.length, _bool2Int(aes256));
     bytes.destroy();
   }
 
@@ -937,10 +937,10 @@ String? _buffer2String(Pointer<Uint8>? ptr, int length) {
 
 final MMKVPluginPlatform _mmkvPlatform = MMKVPluginPlatform.instance!;
 
-final Pointer<Void> Function(Pointer<Utf8> mmapID, int, Pointer<Utf8> cryptKey, Pointer<Utf8> rootDir, int expectedCapacity, int isNameSpace) _getMMKVWithID2 =
+final Pointer<Void> Function(Pointer<Utf8> mmapID, int, Pointer<Utf8> cryptKey, Pointer<Utf8> rootDir, int expectedCapacity, int isNameSpace, int aes256) _getMMKVWithID2 =
 _mmkvPlatform.getMMKVWithIDFunc2();
 
-final Pointer<Void> Function(int, Pointer<Utf8> cryptKey) _getDefaultMMKV = _mmkvPlatform.getDefaultMMKVFunc();
+final Pointer<Void> Function(int, Pointer<Utf8> cryptKey, int aes256) _getDefaultMMKV = _mmkvPlatform.getDefaultMMKVFunc();
 
 final Pointer<Utf8> Function(Pointer<Void>) _mmapID = _mmkvPlatform.mmapIDFunc();
 
@@ -974,11 +974,11 @@ final int Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint8>, int, int) _enco
 
 final Pointer<Uint8> Function(Pointer<Void>, Pointer<Utf8>, Pointer<Uint64>) _decodeBytes =  _mmkvPlatform.decodeBytesFunc();
 
-final int Function(Pointer<Void>, Pointer<Uint8>, int) _reKey = _mmkvPlatform.reKeyFunc();
+final int Function(Pointer<Void>, Pointer<Uint8>, int length, int aes256) _reKey = _mmkvPlatform.reKeyFunc();
 
 final Pointer<Uint8> Function(Pointer<Void>, Pointer<Uint64>) _cryptKey = _mmkvPlatform.cryptKeyFunc();
 
-final void Function(Pointer<Void>, Pointer<Uint8>, int) _checkReSetCryptKey = _mmkvPlatform.checkReSetCryptKeyFunc();
+final void Function(Pointer<Void>, Pointer<Uint8>, int length, int aes256) _checkReSetCryptKey = _mmkvPlatform.checkReSetCryptKeyFunc();
 
 final int Function(Pointer<Void>, Pointer<Utf8>, int) _valueSize = _mmkvPlatform.valueSizeFunc();
 

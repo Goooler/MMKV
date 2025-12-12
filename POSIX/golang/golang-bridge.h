@@ -43,8 +43,8 @@ void mmkvInitialize(GoStringWrap_t rootDir, int32_t logLevel, bool redirect);
 void onExit();
 
 void *getMMKVWithID(GoStringWrap_t mmapID, int32_t mode, GoStringWrap_t cryptKey, 
-                    GoStringWrap_t rootPath, uint64_t expectedCapacity);
-void *getDefaultMMKV(int32_t mode, GoStringWrap_t cryptKey);
+                    GoStringWrap_t rootPath, uint64_t expectedCapacity, bool aes256);
+void *getDefaultMMKV(int32_t mode, GoStringWrap_t cryptKey, bool aes256);
 const char *mmapID(void *handle);
 
 bool encodeBool(void *handle, GoStringWrap_t oKey, bool value);
@@ -79,9 +79,9 @@ bool encodeBytes(void *handle, GoStringWrap_t oKey, GoStringWrap_t oValue);
 bool encodeBytes_v2(void *handle, GoStringWrap_t oKey, GoStringWrap_t oValue, uint32_t expireDuration);
 void *decodeBytes(void *handle, GoStringWrap_t oKey, uint64_t *lengthPtr);
 
-bool reKey(void *handle, GoStringWrap_t oKey);
+bool reKey(void *handle, GoStringWrap_t oKey, bool aes256);
 void *cryptKey(void *handle, uint32_t *lengthPtr);
-void checkReSetCryptKey(void *handle, GoStringWrap_t oKey);
+void checkReSetCryptKey(void *handle, GoStringWrap_t oKey, bool aes256);
 
 GoStringWrap_t *allKeys(void *handle, uint64_t *lengthPtr, bool filterExpire);
 bool containsKey(void *handle, GoStringWrap_t oKey);

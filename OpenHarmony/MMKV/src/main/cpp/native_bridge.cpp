@@ -144,7 +144,7 @@ static napi_value DoubleArrayToNValue(napi_env env, const vector<double> &value)
 }
 
 static napi_value BoolToNValue(napi_env env, bool value);
-static bool NValueToBool(napi_env env, napi_value value);
+static bool NValueToBool(napi_env env, napi_value value, bool maybeUndefined = false);
 
 static vector<bool> NValueToBoolArray(napi_env env, napi_value value, bool maybeUndefined = false) {
     vector<bool> keys;
@@ -261,7 +261,10 @@ static napi_value BoolToNValue(napi_env env, bool value) {
     return resultBool;
 }
 
-static bool NValueToBool(napi_env env, napi_value value) {
+static bool NValueToBool(napi_env env, napi_value value, bool maybeUndefined) {
+    if (maybeUndefined && IsNValueUndefined(env, value)) {
+        return false;
+    }
     bool result;
     if (napi_get_value_bool(env, value, &result) == napi_ok) {
         return result;
@@ -524,21 +527,22 @@ static napi_value pageSize(napi_env env, napi_callback_info info) {
 }
 
 static napi_value getDefaultMMKV(napi_env env, napi_callback_info info) {
-    size_t argc = 2;
-    napi_value args[2] = {nullptr};
+    size_t argc = 3;
+    napi_value args[3] = {nullptr};
     NAPI_CALL(napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
     int32_t mode;
     NAPI_CALL(napi_get_value_int32(env, args[0], &mode));
     auto crypt = NValueToString(env, args[1], true);
+    auto aes256 = NValueToBool(env, args[2], true);
 
     MMKV *kv = nullptr;
     if (crypt.length() > 0) {
-        kv = MMKV::defaultMMKV((MMKVMode)mode, &crypt);
+        kv = MMKV::defaultMMKV((MMKVMode)mode, &crypt, aes256);
     }
 
     if (!kv) {
-        kv = MMKV::defaultMMKV((MMKVMode)mode, nullptr);
+        kv = MMKV::defaultMMKV((MMKVMode)mode, nullptr, aes256);
     }
 
     return UInt64ToNValue(env,(uint64_t)kv);
@@ -546,8 +550,8 @@ static napi_value getDefaultMMKV(napi_env env, napi_callback_info info) {
 
 // mmkvWithID(mmapID: string, mode: number, cryptKey?: string, rootPath?: string, expectedCapacity?: bigint): bigint
 static napi_value mmkvWithID(napi_env env, napi_callback_info info) {
-    size_t argc = 5;
-    napi_value args[5] = {nullptr};
+    size_t argc = 6;
+    napi_value args[6] = {nullptr};
     NAPI_CALL(napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
     MMKV *kv = nullptr;
@@ -557,11 +561,12 @@ static napi_value mmkvWithID(napi_env env, napi_callback_info info) {
         auto cryptKey = NValueToString(env, args[2], true);
         auto rootPath = NValueToString(env, args[3], true);
         auto expectedCapacity = NValueToUInt64(env, args[4], true);
+        auto aes256 = NValueToBool(env, args[5], true);
 
         auto cryptKeyPtr = cryptKey.empty() ? nullptr : &cryptKey;
         auto rootPathPtr = rootPath.empty() ? nullptr : &rootPath;
         // MMKVInfo("rootPath: %p, %s, %s", rootPathPtr, rootPath.c_str(), rootPathPtr ? rootPathPtr->c_str() : "");
-        kv = MMKV::mmkvWithID(mmapID, DEFAULT_MMAP_SIZE, (MMKVMode)mode, cryptKeyPtr, rootPathPtr, expectedCapacity);
+        kv = MMKV::mmkvWithID(mmapID, DEFAULT_MMAP_SIZE, (MMKVMode)mode, cryptKeyPtr, rootPathPtr, expectedCapacity, aes256);
     }
 
     return UInt64ToNValue(env, (uint64_t) kv);
@@ -1414,30 +1419,32 @@ static napi_value cryptKey(napi_env env, napi_callback_info info) {
 }
 
 static napi_value reKey(napi_env env, napi_callback_info info) {
-    size_t argc = 2;
-    napi_value args[2] = {nullptr};
+    size_t argc = 3;
+    napi_value args[3] = {nullptr};
     NAPI_CALL(napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
     auto handle = NValueToUInt64(env, args[0]);
     auto cryptKey = NValueToString(env, args[1], true);
+    auto aes256 = NValueToBool(env, args[2], true);
     MMKV *kv = reinterpret_cast<MMKV *>(handle);
     if (kv) {
-        return BoolToNValue(env, kv->reKey(cryptKey));
+        return BoolToNValue(env, kv->reKey(cryptKey, aes256));
     }
     return BoolToNValue(env, false);
 }
 
 static napi_value checkReSetCryptKey(napi_env env, napi_callback_info info) {
-    size_t argc = 2;
-    napi_value args[2] = {nullptr};
+    size_t argc = 3;
+    napi_value args[3] = {nullptr};
     NAPI_CALL(napi_get_cb_info(env, info, &argc, args, nullptr, nullptr));
 
     auto handle = NValueToUInt64(env, args[0]);
     auto cryptKey = NValueToString(env, args[1], true);
+    auto aes256 = NValueToBool(env, args[2], true);
     MMKV *kv = reinterpret_cast<MMKV *>(handle);
     if (kv) {
         auto cryptKeyPtr = cryptKey.empty() ? nullptr : &cryptKey;
-        kv->checkReSetCryptKey(cryptKeyPtr);
+        kv->checkReSetCryptKey(cryptKeyPtr, aes256);
     }
     return NAPIUndefined(env);
 }

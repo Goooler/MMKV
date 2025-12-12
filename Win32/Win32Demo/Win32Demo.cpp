@@ -423,6 +423,7 @@ void testReadOnly() {
 
 void testNameSpace() {
     wstring rootDir = getAppDataRoaming(L"Tencent", L"微信-mmkv_namespace");
+    // wstring rootDir = L"D:\\mmkv";
     auto ns = MMKV::nameSpace(rootDir);
     auto kv = ns.mmkvWithID("test_namespace");
     functionalTest(kv, false);
@@ -454,6 +455,31 @@ void testImport() {
     assert(result == "test import");
     Sleep(2 * 1000);
     assert(dst->count(true) == 0);
+}
+
+MMKV* testMMKV(const string& mmapID, const string* cryptKey, bool aes256, bool decodeOnly, const wstring* rootPath) {
+    MMKV* kv = MMKV::mmkvWithID(mmapID, MMKV_SINGLE_PROCESS, cryptKey, rootPath, 0, aes256);
+    functionalTest(kv, decodeOnly);
+    return kv;
+}
+
+void testReKey() {
+    string mmapID = "test/AES_reKey1";
+    MMKV* kv = testMMKV(mmapID, nullptr, false, false, nullptr);
+
+    string cryptKey = "Key_seq_1";
+    kv->reKey(cryptKey);
+    kv->clearMemoryCache();
+    testMMKV(mmapID, &cryptKey, false, true, nullptr);
+
+    string cryptKey2 = "Key_Seq_Very_Looooooooong";
+    kv->reKey(cryptKey2, true);
+    kv->clearMemoryCache();
+    testMMKV(mmapID, &cryptKey2, true, true, nullptr);
+
+    kv->reKey(string());
+    kv->clearMemoryCache();
+    testMMKV(mmapID, nullptr, false, true, nullptr);
 }
 
 static void
@@ -518,4 +544,5 @@ int main() {
     testRemoveStorage();
     testReadOnly();
     testImport();
+    testReKey();
 }

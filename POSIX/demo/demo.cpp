@@ -368,6 +368,22 @@ void cornetSizeTest() {
     mmkv->trim();
 }
 
+void itemSizeHolderTest() {
+    auto mmkv = MMKV::mmkvWithID("itemsize");
+    // mmkv->clearAll();
+    mmkv->set(true, "bool");
+    mmkv->clearMemoryCache();
+    // you won't find the key "bool"
+    cout << "allKeys: " << ::to_string(mmkv->allKeys()) << endl;
+
+    string aesKey = "cryptKey";
+    mmkv = MMKV::mmkvWithID("itemsizecrypt", MMKV_SINGLE_PROCESS, &aesKey);
+    mmkv->set(true, "bool");
+    mmkv->clearMemoryCache();
+    // you won't find the key "bool"
+    cout << "allKeys: " << ::to_string(mmkv->allKeys()) << endl;
+}
+
 void fastRemoveCornetSizeTest() {
     string aesKey = "aes";
     auto mmkv = MMKV::mmkvWithID("fastRemoveCornerSize", MMKV_MULTI_PROCESS, &aesKey);
@@ -1310,6 +1326,31 @@ void testImport() {
     assert(dst->count(true) == 0);
 }
 
+MMKV* testMMKV(const string& mmapID, const string* cryptKey, bool aes256, bool decodeOnly, const string* rootPath) {
+    MMKV* kv = MMKV::mmkvWithID(mmapID, MMKV_SINGLE_PROCESS, cryptKey, rootPath, 0, aes256);
+    functionalTest(kv, decodeOnly);
+    return kv;
+}
+
+void testReKey() {
+    string mmapID = "test/AES_reKey1";
+    MMKV* kv = testMMKV(mmapID, nullptr, false, false, nullptr);
+
+    string cryptKey = "Key_seq_1";
+    kv->reKey(cryptKey);
+    kv->clearMemoryCache();
+    testMMKV(mmapID, &cryptKey, false, true, nullptr);
+
+    string cryptKey2 = "Key_Seq_Very_Looooooooong";
+    kv->reKey(cryptKey2, true);
+    kv->clearMemoryCache();
+    testMMKV(mmapID, &cryptKey2, true, true, nullptr);
+
+    kv->reKey(string());
+    kv->clearMemoryCache();
+    testMMKV(mmapID, nullptr, false, true, nullptr);
+}
+
 void MyLogHandler(MMKVLogLevel level, const char *file, int line, const char *function, const string &message) {
 
     auto desc = [level] {
@@ -1327,6 +1368,17 @@ void MyLogHandler(MMKVLogLevel level, const char *file, int line, const char *fu
         }
     }();
     printf("redirecting-[%s] <%s:%d::%s> %s\n", desc, file, line, function, message.c_str());
+}
+
+void testReadonlyCrash() {
+    std::string *key = nullptr;
+    const std::string g_ro_path = "/tmp/mmkv_readonly";
+    MMKV *self = MMKV::mmkvWithID("UnitTestRo", MMKVMode::MMKV_MULTI_PROCESS | MMKVMode::MMKV_READ_ONLY, key, &g_ro_path);
+//    MMKV *self = MMKV::mmkvWithID("UnitTestRo", MMKVMode::MMKV_MULTI_PROCESS, key, &g_ro_path);
+    std::string tmp;
+//    self->set("", "test_ro_string");
+    self->getString("test_ro_string", tmp);
+    printf("value: %s\n", tmp.c_str());
 }
 
 int main() {
@@ -1354,7 +1406,7 @@ int main() {
     }
 
     //fastRemoveCornetSizeTest();
-    //cornetSizeTest();
+    // cornetSizeTest();
     //testClearEmptyMMKV();
     brutleTest();
     threadTest();
@@ -1372,5 +1424,8 @@ int main() {
 //    testFtruncateFail();
     testRemoveStorage();
     testReadOnly();
+    testReadonlyCrash();
     testImport();
+    itemSizeHolderTest();
+    testReKey();
 }

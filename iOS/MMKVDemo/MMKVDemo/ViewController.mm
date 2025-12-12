@@ -230,8 +230,8 @@
     functionalTest(false);
 }
 
-- (void)testMMKV:(NSString *)mmapID withCryptKey:(NSData *)cryptKey decodeOnly:(BOOL)decodeOnly {
-    MMKV *mmkv = [MMKV mmkvWithID:mmapID cryptKey:cryptKey];
+- (void)testMMKV:(NSString *)mmapID withCryptKey:(NSData *)cryptKey aes256:(BOOL)aes256 decodeOnly:(BOOL)decodeOnly {
+    MMKV *mmkv = [MMKV mmkvWithID:mmapID cryptKey:cryptKey aes256:aes256];
     [ViewController testMMKV:mmkv decodeOnly:decodeOnly];
 
     NSLog(@"isFileValid[%@]: %d, checkExist: %d", mmapID, [MMKV isFileValid:mmapID], [MMKV checkExist:mmapID rootPath:nil]);
@@ -297,22 +297,22 @@
 
 - (void)testReKey {
     NSString *mmapID = @"testAES_reKey";
-    [self testMMKV:mmapID withCryptKey:nullptr decodeOnly:NO];
+    [self testMMKV:mmapID withCryptKey:nullptr aes256:NO decodeOnly:NO];
 
     MMKV *kv = [MMKV mmkvWithID:mmapID cryptKey:nullptr];
-    NSData *key_1 = [@"Key_seq_1" dataUsingEncoding:NSUTF8StringEncoding];
+    NSData *key_1 = [@"Key_Seq_1" dataUsingEncoding:NSUTF8StringEncoding];
     [kv reKey:key_1];
     [kv clearMemoryCache];
-    [self testMMKV:mmapID withCryptKey:key_1 decodeOnly:YES];
+    [self testMMKV:mmapID withCryptKey:key_1 aes256:NO decodeOnly:YES];
 
-    NSData *key_2 = [@"Key_seq_2" dataUsingEncoding:NSUTF8StringEncoding];
-    [kv reKey:key_2];
+    NSData *key_2 = [@"Key_Seq_Very_Looooooooong" dataUsingEncoding:NSUTF8StringEncoding];
+    [kv reKey:key_2 aes256:YES];
     [kv clearMemoryCache];
-    [self testMMKV:mmapID withCryptKey:key_2 decodeOnly:YES];
+    [self testMMKV:mmapID withCryptKey:key_2 aes256:YES decodeOnly:YES];
 
     [kv reKey:nullptr];
     [kv clearMemoryCache];
-    [self testMMKV:mmapID withCryptKey:nullptr decodeOnly:YES];
+    [self testMMKV:mmapID withCryptKey:nullptr aes256:NO decodeOnly:YES];
 }
 
 - (void)testImportFromUserDefault {
@@ -412,7 +412,7 @@
     [mmkv trim];
     [mmkv disableAutoKeyExpire];
 
-    [self testMMKV:mmapID withCryptKey:nil decodeOnly:NO];
+    [self testMMKV:mmapID withCryptKey:nil aes256:NO decodeOnly:NO];
     [mmkv setBool:YES forKey:@"auto_expire_key_1"];
     [mmkv enableAutoKeyExpire:1];
     [mmkv setString:@"never_expire_key_1" forKey:@"never_expire_key_1" expireDuration:MMKVExpireNever];
@@ -426,7 +426,7 @@
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         assert([mmkv containsKey:@"auto_expire_key_1"] == NO);
         assert([mmkv containsKey:@"never_expire_key_1"] == YES);
-        [self testMMKV:mmapID withCryptKey:nil decodeOnly:YES];
+        [self testMMKV:mmapID withCryptKey:nil aes256:NO decodeOnly:YES];
 
         [mmkv removeValueForKey:@"never_expire_key_1"];
         [mmkv enableAutoKeyExpire:MMKVExpireNever];
@@ -1201,7 +1201,7 @@ MMKV *getMMKVForBatchTest() {
     auto name = @"testReadOnly";
     NSData *key_1 = [@"Key_ReadOnly" dataUsingEncoding:NSUTF8StringEncoding];
     if (isForPrepare) {
-        [self testMMKV:name withCryptKey:key_1 decodeOnly:NO];
+        [self testMMKV:name withCryptKey:key_1 aes256:NO decodeOnly:NO];
     } else {
         auto mmkvPath = [[NSBundle mainBundle] pathForResource:name ofType:nil];
         auto mmkvDir = [mmkvPath stringByDeletingLastPathComponent];

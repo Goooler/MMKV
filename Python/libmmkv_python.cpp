@@ -102,10 +102,11 @@ PYBIND11_MODULE(mmkv, m) {
                 "Parameters:\n"
                 "  mmapID: all instances of the same mmapID share the same data and file storage\n"
                 "  mode: pass MMKVMode.MultiProcess for a multi-process MMKV\n"
-                "  cryptKey: pass a non-empty string for an encrypted MMKV, 16 bytes at most\n"
-                "  expectedCapacity: the file size you expected when opening or creating file",
+                "  cryptKey: pass a non-empty string for an encrypted MMKV, 32 bytes at most\n"
+                "  expectedCapacity: the file size you expected when opening or creating file\n"
+                "  aes256: use AES 256 key length",
                 py::arg("mmapID"), py::arg("mode") = MMKV_SINGLE_PROCESS, py::arg("cryptKey") = string(),
-                py::arg("expectedCapacity") = 0);
+                py::arg("expectedCapacity") = 0, py::arg("aes256") = false);
 
     clsNameSpace.def("rootDir", &NameSpace::getRootDir, "get the root directory of NameSpace");
 
@@ -137,19 +138,21 @@ PYBIND11_MODULE(mmkv, m) {
     //             py::arg("rootDir") = (string*) nullptr);
 
     clsMMKV.def(py::init([](const string &mmapID, MMKVMode mode, const string &cryptKey, const MMKVPath_t &rootDir,
-                            const size_t expectedCapacity) {
+                            const size_t expectedCapacity, bool aes256) {
                     string *cryptKeyPtr = (cryptKey.length() > 0) ? (string *) &cryptKey : nullptr;
                     MMKVPath_t *rootDirPtr = (rootDir.length() > 0) ? (MMKVPath_t *) &rootDir : nullptr;
-                    return MMKV::mmkvWithID(mmapID, mode, cryptKeyPtr, rootDirPtr, expectedCapacity);
+                    return MMKV::mmkvWithID(mmapID, mode, cryptKeyPtr, rootDirPtr, expectedCapacity, aes256);
                 }),
                 "Parameters:\n"
                 "  mmapID: all instances of the same mmapID share the same data and file storage\n"
                 "  mode: pass MMKVMode.MultiProcess for a multi-process MMKV\n"
-                "  cryptKey: pass a non-empty string for an encrypted MMKV, 16 bytes at most\n"
+                "  cryptKey: pass a non-empty string for an encrypted MMKV, 32 bytes at most\n"
                 "  rootDir: custom root directory",
-                "  expectedCapacity: the file size you expected when opening or creating file", py::arg("mmapID"),
-                py::arg("mode") = MMKV_SINGLE_PROCESS, py::arg("cryptKey") = string(), py::arg("rootDir") = string(),
-                py::arg("expectedCapacity") = 0);
+                "  expectedCapacity: the file size you expected when opening or creating file\n",
+                "  aes256: use AES 256 key length",
+                py::arg("mmapID"), py::arg("mode") = MMKV_SINGLE_PROCESS,
+                py::arg("cryptKey") = string(), py::arg("rootDir") = string(),
+                py::arg("expectedCapacity") = 0, py::arg("aes256") = false);
 
     clsMMKV.def("__eq__", [](MMKV &kv, const MMKV &other) { return kv.mmapID() == other.mmapID(); });
 
@@ -168,11 +171,12 @@ PYBIND11_MODULE(mmkv, m) {
 
     clsMMKV.def_static(
         "defaultMMKV",
-        [](MMKVMode mode, const string &cryptKey) {
+        [](MMKVMode mode, const string &cryptKey, bool aes256) {
             string *cryptKeyPtr = (cryptKey.length() > 0) ? (string *) &cryptKey : nullptr;
-            return MMKV::defaultMMKV(mode, cryptKeyPtr);
+            return MMKV::defaultMMKV(mode, cryptKeyPtr, aes256);
         },
-        "a generic purpose instance", py::arg("mode") = MMKV_SINGLE_PROCESS, py::arg("cryptKey") = string());
+        "a generic purpose instance", py::arg("mode") = MMKV_SINGLE_PROCESS, py::arg("cryptKey") = string(),
+        py::arg("aes256") = false);
 
     clsMMKV.def_static("nameSpace", &MMKV::nameSpace, "get a namespace with custom root dir");
     clsMMKV.def_static("defaultNameSpace", &MMKV::defaultNameSpace, "identical with the original MMKV with the global root dir");
@@ -184,12 +188,13 @@ PYBIND11_MODULE(mmkv, m) {
     clsMMKV.def("reKey", &MMKV::reKey,
                 "transform plain text into encrypted text, or vice versa with an empty cryptKey\n"
                 "Parameters:\n"
-                "  newCryptKey: 16 bytes at most",
-                py::arg("newCryptKey"));
+                "  newCryptKey: 32 bytes at most\n"
+                "  aes256: use AES 256 key length",
+                py::arg("newCryptKey"), py::arg("aes256") = false);
     clsMMKV.def("checkReSetCryptKey", &MMKV::checkReSetCryptKey,
                 "just reset cryptKey (will not encrypt or decrypt anything),\n"
                 "usually you should call this method after other process reKey() a multi-process mmkv",
-                py::arg("newCryptKey"));
+                py::arg("newCryptKey"), py::arg("aes256") = false);
 
     // TODO: Doesn't work, why?
     // clsMMKV.def("set", py::overload_cast<bool, const string&>(&MMKV::set), py::arg("value"), py::arg("key"));
@@ -286,7 +291,8 @@ PYBIND11_MODULE(mmkv, m) {
     clsMMKV.def("clearAll", &MMKV::clearAll, py::arg("keepSpace") = false, "remove all key-values");
     clsMMKV.def("trim", &MMKV::trim, "call this method after lots of removing if you care about disk usage");
     clsMMKV.def("importFrom", &MMKV::importFrom, "import all key-value items from others");
-    clsMMKV.def("clearMemoryCache", &MMKV::clearMemoryCache, "call this method if you are facing memory-warning");
+    clsMMKV.def("clearMemoryCache", &MMKV::clearMemoryCache, "call this method if you are facing memory-warning",
+        py::arg("keepSpace") = false);
 
     clsMMKV.def("sync", &MMKV::sync, py::arg("flag") = MMKV_SYNC,
                 "this call is not necessary unless you worry about unexpected shutdown of the machine (running out of "

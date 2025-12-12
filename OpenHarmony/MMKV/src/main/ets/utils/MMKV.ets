@@ -145,11 +145,11 @@ export class MMKV {
      * @param cryptKey The encryption key of the MMKV instance (no more than 16 bytes).
      * @returns The default MMKV instance.
      */
-    public static defaultMMKV(mode?: number, cryptKey?: string): MMKV {
+    public static defaultMMKV(mode?: number, cryptKey?: string, aes256?: boolean): MMKV {
         if (!MMKV.g_rootDir) {
             throw new Error('You should Call MMKV.initialize() first.')
         }
-        let handle: bigint = native.getDefaultMMKV(mode ?? MMKV.SINGLE_PROCESS_MODE, cryptKey);
+        let handle: bigint = native.getDefaultMMKV(mode ?? MMKV.SINGLE_PROCESS_MODE, cryptKey, aes256);
         if (!handle) {
             throw new Error('Fail to create the default MMKV instance in NAPI.');
         }
@@ -165,11 +165,13 @@ export class MMKV {
      * @param expectedCapacity The file size you expected when opening or creating file.
      * @returns The MMKV instance.
      */
-    public static mmkvWithID(mmapID: string, mode?: number, cryptKey?: string, rootPath?: string, expectedCapacity?: bigint): MMKV {
+    public static mmkvWithID(mmapID: string, mode?: number, cryptKey?: string, rootPath?: string,
+        expectedCapacity?: bigint, aes256?: boolean): MMKV {
         if (!MMKV.g_rootDir) {
             throw new Error('You should Call MMKV.initialize() first.')
         }
-        let handle: bigint = native.mmkvWithID(mmapID, mode ?? MMKV.SINGLE_PROCESS_MODE, cryptKey, rootPath, expectedCapacity);
+        let handle: bigint = native.mmkvWithID(mmapID, mode ?? MMKV.SINGLE_PROCESS_MODE, cryptKey, rootPath,
+            expectedCapacity, aes256);
         if (!handle) {
             throw new Error('Fail to create an MMKV instance [' + mmapID + '] in NAPI.');
         }
@@ -708,8 +710,8 @@ export class MMKV {
      * @param cryptKey The new encryption key (no more than 16 bytes).
      * @return true if success, otherwise false.
      */
-    public reKey(newKey?: string): boolean {
-        return native.reKey(this.nativeHandle, newKey);
+    public reKey(newKey?: string, aes256?: boolean): boolean {
+        return native.reKey(this.nativeHandle, newKey, aes256);
     }
 
     /**
@@ -718,8 +720,8 @@ export class MMKV {
      *
      * @param cryptKey The new encryption key (no more than 16 bytes).
      */
-    public checkReSetCryptKey(newKey?: string): void {
-        return native.checkReSetCryptKey(this.nativeHandle, newKey);
+    public checkReSetCryptKey(newKey?: string, aes256?: boolean): void {
+        return native.checkReSetCryptKey(this.nativeHandle, newKey, aes256);
     }
 
     /**
@@ -1018,8 +1020,9 @@ class NameSpace {
      * @param expectedCapacity The file size you expected when opening or creating file.
      * @returns The MMKV instance.
      */
-    public mmkvWithID(mmapID: string, mode?: number, cryptKey?: string, expectedCapacity?: bigint): MMKV {
-        let handle: bigint = native.mmkvWithID(mmapID, mode ?? MMKV.SINGLE_PROCESS_MODE, cryptKey, this._rootDir, expectedCapacity);
+    public mmkvWithID(mmapID: string, mode?: number, cryptKey?: string, expectedCapacity?: bigint, aes256?: boolean): MMKV {
+        let handle: bigint = native.mmkvWithID(mmapID, mode ?? MMKV.SINGLE_PROCESS_MODE, cryptKey, this._rootDir,
+            expectedCapacity, aes256);
         if (!handle) {
             throw new Error('Fail to create an MMKV instance [' + mmapID + '] in NAPI.');
         }

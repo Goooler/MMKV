@@ -1,4 +1,34 @@
 # MMKV Change Log
+## v2.3.0 / 2025-12-03 (Breaking Change)
+
+This release is a **breaking change** and introduces **AES-256 encryption** for enhanced security.
+
+### All Platforms
+
+* **Feature:** Added **AES-256 encryption** functionality. To upgrade an existing encrypted MMKV instance to AES-256, first load it using the old key. Then, call the `reKey()` method with the new key and set the `aes256` parameter to `true`, e.g., `reKey(newKey, aes256=true)`. After this, you should use the new key for all future loads of this instance.
+* **Fix:** Resolved a crash that occurred when loading an empty file in `ReadOnly` mode.
+* **Fix:** Added protection against the `weakly_canonical()` exception caused by an invalid file path.
+* **Fix:** Fixed an issue where the file size could change during multi-process loading.
+* **Fix:** Corrected a bug where a single key could be overridden incorrectly when upgrading from a v1.1.x version.
+
+### iOS/macOS/watchOS
+
+* **Change:** Dropped support for the **armv7k** architecture on Apple Watch. To adapt, you should add `armv7k` to the **"Excluded Architectures"** setting for your Apple Watch App or Extension target.
+* **Important:** Do not upgrade to this version if you need to maintain `armv7k` support.
+
+### POSIX
+
+* **Change:** Dropped support for **armv7** architecture. **Do not** upgrade to this version if you need to maintain `armv7` support.
+
+## v2.2.4 / 2025-09-25
+This is a hotfix release mainly for iOS/macOS CocoaPods users.
+
+### Changes for All platforms
+* Improve the performance of MMBuffer a little bit in some cases.
+
+### iOS/macOS
+* Make MMKV and MMKVCore podspec define modules.
+
 ## v2.2.3 / 2025-08-20
 This is a feature release that brings **full desktop support to Flutter**. It also includes key bug fixes and enhancements for Android and other platforms.
 

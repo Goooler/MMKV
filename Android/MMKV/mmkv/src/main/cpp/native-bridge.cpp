@@ -304,7 +304,7 @@ static void onContentChangedByOuterProcess(const std::string &mmapID) {
 }
 
 MMKV_JNI jlong getMMKVWithID(JNIEnv *env, jobject, jstring mmapID, jint mode, jstring cryptKey, jstring rootPath,
-                             jlong expectedCapacity) {
+                             jlong expectedCapacity, jboolean aes256) {
     MMKV *kv = nullptr;
     if (!mmapID) {
         return (jlong) kv;
@@ -317,9 +317,9 @@ MMKV_JNI jlong getMMKVWithID(JNIEnv *env, jobject, jstring mmapID, jint mode, js
         if (crypt.length() > 0) {
             if (rootPath) {
                 string path = jstring2string(env, rootPath);
-                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, &path, expectedCapacity);
+                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, &path, expectedCapacity, aes256);
             } else {
-                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, nullptr, expectedCapacity);
+                kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, &crypt, nullptr, expectedCapacity, aes256);
             }
             done = true;
         }
@@ -327,16 +327,17 @@ MMKV_JNI jlong getMMKVWithID(JNIEnv *env, jobject, jstring mmapID, jint mode, js
     if (!done) {
         if (rootPath) {
             string path = jstring2string(env, rootPath);
-            kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, &path, expectedCapacity);
+            kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, &path, expectedCapacity, aes256);
         } else {
-            kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, nullptr, expectedCapacity);
+            kv = MMKV::mmkvWithID(str, DEFAULT_MMAP_SIZE, (MMKVMode) mode, nullptr, nullptr, expectedCapacity, aes256);
         }
     }
 
     return (jlong) kv;
 }
 
-MMKV_JNI jlong getMMKVWithIDAndSize(JNIEnv *env, jobject obj, jstring mmapID, jint size, jint mode, jstring cryptKey) {
+MMKV_JNI jlong getMMKVWithIDAndSize(JNIEnv *env, jobject obj, jstring mmapID, jint size, jint mode, jstring cryptKey,
+                                    jboolean aes256) {
     MMKV *kv = nullptr;
     if (!mmapID || size < 0) {
         return (jlong) kv;
@@ -346,32 +347,33 @@ MMKV_JNI jlong getMMKVWithIDAndSize(JNIEnv *env, jobject obj, jstring mmapID, ji
     if (cryptKey) {
         string crypt = jstring2string(env, cryptKey);
         if (crypt.length() > 0) {
-            kv = MMKV::mmkvWithID(str, size, (MMKVMode) mode, &crypt);
+            kv = MMKV::mmkvWithID(str, size, (MMKVMode) mode, &crypt, nullptr, 0, aes256);
         }
     }
     if (!kv) {
-        kv = MMKV::mmkvWithID(str, size, (MMKVMode) mode, nullptr);
+        kv = MMKV::mmkvWithID(str, size, (MMKVMode) mode, nullptr, nullptr, 0, aes256);
     }
     return (jlong) kv;
 }
 
-MMKV_JNI jlong getDefaultMMKV(JNIEnv *env, jobject obj, jint mode, jstring cryptKey) {
+MMKV_JNI jlong getDefaultMMKV(JNIEnv *env, jobject obj, jint mode, jstring cryptKey, jboolean aes256) {
     MMKV *kv = nullptr;
 
     if (cryptKey) {
         string crypt = jstring2string(env, cryptKey);
         if (crypt.length() > 0) {
-            kv = MMKV::defaultMMKV((MMKVMode) mode, &crypt);
+            kv = MMKV::defaultMMKV((MMKVMode) mode, &crypt, aes256);
         }
     }
     if (!kv) {
-        kv = MMKV::defaultMMKV((MMKVMode) mode, nullptr);
+        kv = MMKV::defaultMMKV((MMKVMode) mode, nullptr, aes256);
     }
 
     return (jlong) kv;
 }
 
-MMKV_JNI jlong getMMKVWithAshmemFD(JNIEnv *env, jobject obj, jstring mmapID, jint fd, jint metaFD, jstring cryptKey) {
+MMKV_JNI jlong getMMKVWithAshmemFD(JNIEnv *env, jobject obj, jstring mmapID, jint fd, jint metaFD, jstring cryptKey,
+                                   jboolean aes256) {
     MMKV *kv = nullptr;
     if (!mmapID || fd < 0 || metaFD < 0) {
         return (jlong) kv;
@@ -381,11 +383,11 @@ MMKV_JNI jlong getMMKVWithAshmemFD(JNIEnv *env, jobject obj, jstring mmapID, jin
     if (cryptKey) {
         string crypt = jstring2string(env, cryptKey);
         if (crypt.length() > 0) {
-            kv = MMKV::mmkvWithAshmemFD(id, fd, metaFD, &crypt);
+            kv = MMKV::mmkvWithAshmemFD(id, fd, metaFD, &crypt, aes256);
         }
     }
     if (!kv) {
-        kv = MMKV::mmkvWithAshmemFD(id, fd, metaFD, nullptr);
+        kv = MMKV::mmkvWithAshmemFD(id, fd, metaFD, nullptr, aes256);
     }
 
     return (jlong) kv;
@@ -862,19 +864,19 @@ MMKV_JNI jstring cryptKey(JNIEnv *env, jobject instance) {
     return nullptr;
 }
 
-MMKV_JNI jboolean reKey(JNIEnv *env, jobject instance, jstring cryptKey) {
+MMKV_JNI jboolean doReKey(JNIEnv *env, jobject instance, jstring cryptKey, jboolean aes256) {
     MMKV *kv = getMMKV(env, instance);
     if (kv) {
         string newKey;
         if (cryptKey) {
             newKey = jstring2string(env, cryptKey);
         }
-        return (jboolean) kv->reKey(newKey);
+        return (jboolean) kv->reKey(newKey, aes256);
     }
     return (jboolean) false;
 }
 
-MMKV_JNI void checkReSetCryptKey(JNIEnv *env, jobject instance, jstring cryptKey) {
+MMKV_JNI void doCheckReSetCryptKey(JNIEnv *env, jobject instance, jstring cryptKey, jboolean aes256) {
     MMKV *kv = getMMKV(env, instance);
     if (kv) {
         string newKey;
@@ -883,9 +885,9 @@ MMKV_JNI void checkReSetCryptKey(JNIEnv *env, jobject instance, jstring cryptKey
         }
 
         if (!cryptKey || newKey.empty()) {
-            kv->checkReSetCryptKey(nullptr);
+            kv->checkReSetCryptKey(nullptr, aes256);
         } else {
-            kv->checkReSetCryptKey(&newKey);
+            kv->checkReSetCryptKey(&newKey, aes256);
         }
     }
 }
@@ -1152,8 +1154,8 @@ static JNINativeMethod g_methods[] = {
     {"onExit", "()V", (void *) mmkv::onExit},
     {"cryptKey", "()Ljava/lang/String;", (void *) mmkv::cryptKey},
 #    ifndef MMKV_DISABLE_CRYPT
-    {"reKey", "(Ljava/lang/String;)Z", (void *) mmkv::reKey},
-    {"checkReSetCryptKey", "(Ljava/lang/String;)V", (void *) mmkv::checkReSetCryptKey},
+    {"doReKey", "(Ljava/lang/String;Z)Z", (void *) mmkv::doReKey},
+    {"doCheckReSetCryptKey", "(Ljava/lang/String;Z)V", (void *) mmkv::doCheckReSetCryptKey},
 #    endif
     {"pageSize", "()I", (void *) mmkv::pageSize},
     {"mmapID", "()Ljava/lang/String;", (void *) mmkv::mmapID},
@@ -1173,10 +1175,10 @@ static JNINativeMethod g_methods[] = {
     {"ashmemFD", "()I", (void *) mmkv::ashmemFD},
     {"ashmemMetaFD", "()I", (void *) mmkv::ashmemMetaFD},
     {"jniInitialize", "(Ljava/lang/String;Ljava/lang/String;IZZJ)V", (void *) mmkv::jniInitialize},
-    {"getMMKVWithID", "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;J)J", (void *) mmkv::getMMKVWithID},
-    {"getMMKVWithIDAndSize", "(Ljava/lang/String;IILjava/lang/String;)J", (void *) mmkv::getMMKVWithIDAndSize},
-    {"getDefaultMMKV", "(ILjava/lang/String;)J", (void *) mmkv::getDefaultMMKV},
-    {"getMMKVWithAshmemFD", "(Ljava/lang/String;IILjava/lang/String;)J", (void *) mmkv::getMMKVWithAshmemFD},
+    {"getMMKVWithID", "(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;JZ)J", (void *) mmkv::getMMKVWithID},
+    {"getMMKVWithIDAndSize", "(Ljava/lang/String;IILjava/lang/String;Z)J", (void *) mmkv::getMMKVWithIDAndSize},
+    {"getDefaultMMKV", "(ILjava/lang/String;Z)J", (void *) mmkv::getDefaultMMKV},
+    {"getMMKVWithAshmemFD", "(Ljava/lang/String;IILjava/lang/String;Z)J", (void *) mmkv::getMMKVWithAshmemFD},
     {"encodeBool", "(JLjava/lang/String;Z)Z", (void *) mmkv::encodeBool},
     {"encodeBool_2", "(JLjava/lang/String;ZI)Z", (void *) mmkv::encodeBool_2},
     {"decodeBool", "(JLjava/lang/String;Z)Z", (void *) mmkv::decodeBool},
