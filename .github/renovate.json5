@@ -17,6 +17,12 @@
       "automergeStrategy": "rebase",
     },
     {
+      groupName: 'AGP',
+      matchPackageNames: [
+        '/com.android.*/',
+      ],
+    },
+    {
       "matchFileNames": [
         "!Android/MMKV/**",
         "!.github/workflows/**"
