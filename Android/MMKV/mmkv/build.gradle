@@ -23,6 +23,7 @@ android {
             minifyEnabled false
             externalNativeBuild {
                 cmake {
+                    arguments "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-s"
                     cppFlags "-fvisibility=hidden", "-funwind-tables", "-fasynchronous-unwind-tables", "-O2"
                 }
             }
