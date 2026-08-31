@@ -25,6 +25,8 @@ import static org.junit.Assert.*;
 import android.content.Context;
 import android.content.Intent;
 import android.os.SystemClock;
+import android.system.Os;
+import android.system.OsConstants;
 import androidx.test.InstrumentationRegistry;
 import java.util.HashSet;
 import org.junit.AfterClass;
@@ -334,5 +336,26 @@ public class MMKVTest {
         SystemClock.sleep(1000 * 3);
         ret = mmkv.tryLock();
         assertEquals(true, ret);
+    }
+
+    @Test
+    public void testPageSizeAndMmapBoundary() throws Exception {
+        long pageSize = Os.sysconf(OsConstants._SC_PAGESIZE);
+        assertTrue(pageSize == 4096 || pageSize == 16384 || pageSize == 65536);
+
+        // Test multi-page data writing to trigger mmap expansion across page boundaries
+        int dataSize = (int) pageSize * 3 + 123;
+        byte[] original = new byte[dataSize];
+        for (int i = 0; i < dataSize; i++) {
+            original[i] = (byte) (i % 256);
+        }
+
+        MMKV kv = MMKV.mmkvWithID("testPageSize", MMKV.SINGLE_PROCESS_MODE);
+        assertTrue(kv.encode("large_data", original));
+        byte[] readBack = kv.decodeBytes("large_data");
+        assertArrayEquals(original, readBack);
+
+        kv.clearAll();
+        kv.close();
     }
 }
