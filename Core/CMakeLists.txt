@@ -181,12 +181,8 @@ function(copy_files)
 
     foreach(file ${source_files})
         get_filename_component(file_dir ${file} DIRECTORY)
-        if(file_dir)
-            file(MAKE_DIRECTORY ${destination_dir}/${file_dir})
-            configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${destination_dir}/${file_dir}/${file} COPYONLY)
-        else()
-            configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${destination_dir}/${file} COPYONLY)
-        endif()
+        file(MAKE_DIRECTORY ${destination_dir}/${file_dir})
+        file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/${file} DESTINATION ${destination_dir}/${file_dir})
     endforeach()
 endfunction()
 
@@ -203,12 +199,9 @@ copy_files(
 #message(STATUS "copying headers with ${OHOS} or ${ANDROID}")
 
 IF(OHOS OR ANDROID)
-    copy_files(
-            MemoryFile.h
-            MMKVLog.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/include/MMKV)
+    file(COPY MemoryFile.h MMKVLog.h DESTINATION ${CMAKE_CURRENT_SOURCE_DIR}/include/MMKV)
 ELSE()
-    file(REMOVE ${CMAKE_CURRENT_SOURCE_DIR}/include/MMKV/MemoryFile.h ${CMAKE_CURRENT_SOURCE_DIR}/include/MMKV/MMKVLog.h)
+    file(REMOVE include/MMKV/MemoryFile.h include/MMKV/MMKVLog.h)
 ENDIF()
 
 target_include_directories(core INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
