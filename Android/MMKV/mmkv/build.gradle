@@ -1,3 +1,4 @@
+import com.android.build.gradle.tasks.SourceJarTask
 import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
 
 plugins {
@@ -91,8 +92,11 @@ mavenPublishing {
     configure(new AndroidMultiVariantLibrary(true, true, buildTypes, variants))
 }
 
-tasks.withType(Jar).configureEach {
+tasks.withType(SourceJarTask).configureEach {
     doFirst {
+        // Fix `Cannot copy file '.../MMKV/Android/MMKV/mmkv/build/generated/aidl_source_output_dir/DefaultCppRelease/out/com/tencent/mmkv/ParcelableMMKV.java'
+        //  to 'com/tencent/mmkv/ParcelableMMKV.java' because file '.../MMKV/Android/MMKV/mmkv/src/main/java/com/tencent/mmkv/ParcelableMMKV.java'
+        //  has already been copied there.`
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }
 }
