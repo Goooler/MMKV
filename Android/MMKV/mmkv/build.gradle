@@ -54,7 +54,6 @@ android {
         }
         SharedCpp {
             dimension "stl_mode"
-            ext.artifactIdSuffix = 'shared'
         }
     }
     buildFeatures {
@@ -73,75 +72,15 @@ android {
 androidComponents {
     onVariants(selector().all()) { variant ->
         def flavorName = variant.flavorName
-        if (flavorName == 'DefaultCpp') {
-            ext.artifactIdSuffix = ''
+        if (flavorName == 'DefaultCpp' || flavorName == 'StaticCpp') {
             variant.externalNativeBuild?.with {
-                arguments.addAll(
-                        "-DANDROID_STL=c++_static",
-                )
-                cppFlags.addAll(
-                        "-DMMKV_STL_SHARED=0",
-                )
-            }
-        } else if (flavorName == 'StaticCpp') {
-            ext.artifactIdSuffix = 'static'
-            variant.externalNativeBuild?.with {
-                arguments.addAll(
-                        "-DANDROID_STL=c++_static",
-                )
-                cppFlags.addAll(
-                        "-DMMKV_STL_SHARED=0",
-                )
+                arguments.addAll("-DANDROID_STL=c++_static")
+                cppFlags.addAll("-DMMKV_STL_SHARED=0")
             }
         } else if (flavorName == 'SharedCpp') {
             variant.externalNativeBuild?.with {
-                arguments.addAll(
-                        "-DANDROID_STL=c++_shared",
-                )
-                cppFlags.addAll(
-                        "-DMMKV_STL_SHARED=1",
-                )
-            }
-        }
-    }
-
-    // TODO: should be improved to avoid hardcoding the path.
-    onVariants(selector().withBuildType("release")) { variant ->
-        def capName = variant.name.capitalize()
-        def abiFilters = ['arm64-v8a', 'x86_64', 'armeabi-v7a', 'x86']
-
-        def syncStrippedLibsToPrefab = tasks.register("syncStrippedLibsToPrefab${capName}", Copy) {
-            def start = layout.buildDirectory
-                    .dir("intermediates/stripped_native_libs/${variant.name}/strip${capName}DebugSymbols/out/lib")
-                    .map { it.asFile }
-            def end = layout.buildDirectory
-                    .dir("intermediates/prefab_package/${capName}/prefab/modules/mmkv/libs")
-                    .map { it.asFile }
-            from(start) {
-                include "**/libmmkv.so"
-            }
-            into end
-            eachFile {
-                logger.debug("lib path before: $path")
-                for (abi in abiFilters) {
-                    if (path.contains("${abi}/")) {
-                        path = path.replace("${abi}/", "android.${abi}/")
-                        break
-                    }
-                }
-                logger.debug("lib path after: $path")
-            }
-        }
-
-        tasks.whenTaskAdded {
-            if (name == "externalNativeBuild${capName}") {
-                finalizedBy(syncStrippedLibsToPrefab)
-            }
-            if (name == "strip${capName}DebugSymbols") {
-                finalizedBy(syncStrippedLibsToPrefab)
-            }
-            if (name == "bundle${capName}Aar" || name == "bundle${capName}LocalLintAar" || name == "prefab${capName}Package") {
-                dependsOn(syncStrippedLibsToPrefab)
+                arguments.addAll("-DANDROID_STL=c++_shared")
+                cppFlags.addAll("-DMMKV_STL_SHARED=1")
             }
         }
     }
