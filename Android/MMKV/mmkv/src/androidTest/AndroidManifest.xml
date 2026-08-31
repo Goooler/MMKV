@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <service
-            android:name=".MMKVTestService"
+            android:name="com.tencent.mmkv.MMKVTestService"
             android:enabled="true"
             android:exported="false"
             android:process=":mmkvtest_svr">

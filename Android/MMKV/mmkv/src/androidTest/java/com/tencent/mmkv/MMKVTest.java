@@ -39,8 +39,8 @@ public class MMKVTest {
 
     @BeforeClass
     public static void setUp() throws Exception {
-        Context appContext = InstrumentationRegistry.getTargetContext();
-        MMKV.initialize(appContext);
+        Context context = InstrumentationRegistry.getContext();
+        MMKV.initialize(context);
 
         mmkv = MMKV.mmkvWithID("unitTest", MMKV.SINGLE_PROCESS_MODE, "UnitTestCryptKey");
     }
@@ -302,37 +302,37 @@ public class MMKVTest {
 
     @Test
     public void testIPCUpdateInt() {
+        Context testContext = InstrumentationRegistry.getContext();
         MMKV mmkv = MMKV.mmkvWithID(MMKVTestService.SharedMMKVID, MMKV.MULTI_PROCESS_MODE);
         mmkv.encode(MMKVTestService.SharedMMKVKey, 1024);
 
-        Context appContext = InstrumentationRegistry.getTargetContext();
-        Intent intent = new Intent(appContext, MMKVTestService.class);
+        Intent intent = new Intent(testContext, MMKVTestService.class);
         intent.putExtra(MMKVTestService.CMD_Key, MMKVTestService.CMD_Update);
-        appContext.startService(intent);
+        assertNotNull(testContext.startService(intent));
 
         SystemClock.sleep(1000 * 3);
         int value = mmkv.decodeInt(MMKVTestService.SharedMMKVKey);
-        assertEquals(value, 1024 + 1);
+        assertEquals(1024 + 1, value);
     }
 
     @Test
     public void testIPCLock() {
-        Context appContext = InstrumentationRegistry.getTargetContext();
+        Context testContext = InstrumentationRegistry.getContext();
 
-        Intent intent = new Intent(appContext, MMKVTestService.class);
+        Intent intent = new Intent(testContext, MMKVTestService.class);
         intent.putExtra(MMKVTestService.CMD_Key, MMKVTestService.CMD_Lock);
-        appContext.startService(intent);
+        assertNotNull(testContext.startService(intent));
 
         SystemClock.sleep(1000 * 3);
         MMKV mmkv = MMKV.mmkvWithID(MMKVTestService.SharedMMKVID, MMKV.MULTI_PROCESS_MODE);
         boolean ret = mmkv.tryLock();
-        assertEquals(ret, false);
+        assertEquals(false, ret);
 
         intent.putExtra(MMKVTestService.CMD_Key, MMKVTestService.CMD_Kill);
-        appContext.startService(intent);
+        assertNotNull(testContext.startService(intent));
 
         SystemClock.sleep(1000 * 3);
         ret = mmkv.tryLock();
-        assertEquals(ret, true);
+        assertEquals(true, ret);
     }
 }
