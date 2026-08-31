@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace "com.tencent.mmkv"
+    namespace "com.tencent.mmkv.annotation"
 }
 
 dependencies {
