@@ -1,3 +1,5 @@
+import com.android.build.gradle.api.AndroidBasePlugin
+
 plugins {
     id 'com.android.application' version '9.3.1' apply false
     id 'com.android.library' version '9.3.1' apply false
@@ -5,7 +7,7 @@ plugins {
 }
 
 allprojects {
-    plugins.withId("com.android.base") {
+    plugins.withType(AndroidBasePlugin).configureEach {
         android {
             compileSdk = 34
             ndkVersion = "28.1.13356709"
