@@ -34,7 +34,7 @@
 #include <vector>
 #include <unordered_map>
 
-constexpr auto MMKV_VERSION = "v2.3.0";
+constexpr auto MMKV_VERSION = "v2.4.2";
 
 #ifdef DEBUG
 #    define MMKV_DEBUG
@@ -91,11 +91,14 @@ constexpr auto MMKV_VERSION = "v2.3.0";
 #    include <SDKDDKVer.h>
 // Exclude rarely-used stuff from Windows headers
 #    define WIN32_LEAN_AND_MEAN
+// Keep Windows min/max macros from breaking std::numeric_limits<T>::min/max.
+#    ifndef NOMINMAX
+#        define NOMINMAX
+#    endif
 // Windows Header Files
 #    include <windows.h>
 
 constexpr auto MMKV_PATH_SLASH = L"\\";
-#    define MMKV_PATH_FORMAT "%ls"
 using MMKVFileHandle_t = HANDLE;
 #define MMKVFileHandleInvalidValue INVALID_HANDLE_VALUE
 using MMKVPath_t = std::wstring;
@@ -109,7 +112,6 @@ extern std::string MMKVPath_t2String(const MMKVPath_t &str);
 #else // MMKV_WIN32
 
 constexpr auto MMKV_PATH_SLASH = "/";
-#    define MMKV_PATH_FORMAT "%s"
 using MMKVFileHandle_t = int;
 constexpr MMKVFileHandle_t MMKVFileHandleInvalidValue = -1;
 using MMKVPath_t = std::string;
@@ -170,17 +172,6 @@ enum SyncFlag : bool { MMKV_SYNC = true, MMKV_ASYNC = false };
 MMKV_NAMESPACE_END
 
 namespace mmkv {
-
-typedef void (*LogHandler)(MMKVLogLevel level, const char *file, int line, const char *function, MMKVLog_t message);
-
-// by default MMKV will discard all datas on failure
-// return `OnErrorRecover` to recover any data from file
-typedef MMKVRecoverStrategic (*ErrorHandler)(const std::string &mmapID, MMKVErrorType errorType);
-
-// called when content is changed by other process
-// doesn't guarantee real-time notification
-typedef void (*ContentChangeHandler)(const std::string &mmapID);
-
 
 extern MMKV_EXPORT size_t DEFAULT_MMAP_SIZE;
 #define DEFAULT_MMAP_ID "mmkv.default"

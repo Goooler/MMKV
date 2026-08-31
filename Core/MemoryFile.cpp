@@ -36,6 +36,7 @@
 #    include <dirent.h>
 #    include <cstring>
 #    include <filesystem>
+#    include <random>
 
 using namespace std;
 namespace fs = std::filesystem;
@@ -303,6 +304,8 @@ void MemoryFile::doCleanMemoryCache(bool forceClean) {
     if (m_ptr && m_ptr != MAP_FAILED) {
         if (munmap(m_ptr, m_size) != 0) {
             MMKVError("fail to munmap [%s], %s", m_diskFile.m_path.c_str(), strerror(errno));
+        } else {
+            MMKVInfo("munmap from address [%p], [%s]", m_ptr, m_diskFile.m_path.c_str());
         }
     }
     m_ptr = nullptr;
@@ -630,29 +633,22 @@ bool copyFileContent(const MMKVPath_t &srcPath, MMKVFileHandle_t dstFD) {
 #endif // !defined(MMKV_APPLE)
 
 void walkInDir(const MMKVPath_t &dirPath, WalkType type, const function<void(const MMKVPath_t&, WalkType)> &walker) {
-    auto folderPathStr = dirPath.data();
-    DIR *dir = opendir(folderPathStr);
+    DIR *dir = opendir(dirPath.c_str());
     if (!dir) {
         MMKVError("opendir failed: %d(%s), %s", errno, strerror(errno), dirPath.c_str());
         return;
     }
 
-    char childPath[PATH_MAX];
-    size_t folderPathLength = dirPath.size();
-    strncpy(childPath, folderPathStr, folderPathLength + 1);
-    if (folderPathStr[folderPathLength - 1] != '/') {
-        childPath[folderPathLength] = '/';
-        folderPathLength++;
+    MMKVPath_t childPath = dirPath;
+    if (childPath.empty() || childPath.back() != '/') {
+        childPath.push_back('/');
     }
+    const auto folderPathLength = childPath.size();
 
     while (auto child = readdir(dir)) {
         if ((child->d_type & DT_REG) && (type & WalkFile)) {
-#if defined(_DIRENT_HAVE_D_NAMLEN) || defined(__APPLE__)
-            stpcpy(childPath + folderPathLength, child->d_name);
-            childPath[folderPathLength + child->d_namlen] = 0;
-#else
-            strcpy(childPath + folderPathLength, child->d_name);
-#endif
+            childPath.resize(folderPathLength);
+            childPath.append(child->d_name);
             walker(childPath, WalkFile);
         } else if ((child->d_type & DT_DIR) && (type & WalkFolder)) {
 #if defined(_DIRENT_HAVE_D_NAMLEN) || defined(__APPLE__)
@@ -660,14 +656,13 @@ void walkInDir(const MMKVPath_t &dirPath, WalkType type, const function<void(con
                 (child->d_namlen == 2 && child->d_name[0] == '.' && child->d_name[1] == '.')) {
                 continue;
             }
-            stpcpy(childPath + folderPathLength, child->d_name);
-            childPath[folderPathLength + child->d_namlen] = 0;
 #else
             if (strcmp(child->d_name, ".") == 0 || strcmp(child->d_name, "..") == 0) {
                 continue;
             }
-            strcpy(childPath + folderPathLength, child->d_name);
 #endif
+            childPath.resize(folderPathLength);
+            childPath.append(child->d_name);
             walker(childPath, WalkFolder);
         }
     }
@@ -711,6 +706,48 @@ bool isDiskOfMMAPFileCorrupted(MemoryFile *file, bool &needReportReadFail) {
 }
 #endif
 
+std::optional<MMKVPath_t> getUniqueFileName(const MMKVPath_t &folder, const MMKVPath_t &prefix) {
+    fs::path folderPath(folder);
+    fs::path prefixPath(prefix);
+
+    // Ensure the directory exists
+    std::error_code ec;
+    if (!fs::exists(folderPath, ec)) {
+        // Attempt to create it or fail if preferred.
+        // GetTempFileName fails if dir doesn't exist, so we adhere to that.
+        return std::nullopt;
+    }
+
+    // Behavior: Generate random unique filename, CREATE the file to reserve it.
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+
+    constexpr int maxAttempts = 64;
+    for (int i = 0; i < maxAttempts; ++i) {
+        uint64_t randomVal = dis(gen);
+        MMKVPath_t suffix = to_string(randomVal);
+        MMKVPath_t fileName = prefix + "." + suffix + ".tmp";
+        fs::path candidatePath = folderPath / fileName;
+
+        // Atomic check and create logic "mimic"
+        // std::filesystem::exists is not atomic, but standard C++17 <fstream> doesn't
+        // support O_EXCL (exclusive create) easily without platform headers.
+        // We check existence first to avoid clobbering existing files.
+        if (fs::exists(candidatePath, ec)) {
+            continue; // Collision found, try next
+        }
+
+        // Try to create the file to "reserve" it
+        File file(candidatePath.native(), OpenFlag::ReadWrite | OpenFlag::Create);
+        if (file.isFileValid()) {
+            return candidatePath.native();
+        }
+    }
+
+    // Failed to find unique name after max attempts
+    return std::nullopt;
+}
 } // namespace mmkv
 
 #endif // !defined(MMKV_WIN32)

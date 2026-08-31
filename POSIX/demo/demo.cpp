@@ -253,7 +253,7 @@ void *threadFunction(void *lpParam) {
 }
 
 void threadTest() {
-    pthread_t threadHandles[threadCount] = {0};
+    pthread_t threadHandles[threadCount] = {};
     for (size_t index = 0; index < threadCount; index++) {
         pthread_create(&threadHandles[index], nullptr, threadFunction, (void *) index);
     }
@@ -282,7 +282,7 @@ void brutleTest() {
 
 void processTest() {
     constexpr auto processCount = 2;
-    pid_t processHandles[processCount] = {0};
+    pid_t processHandles[processCount] = {};
     for (int &processHandle : processHandles) {
         auto pid = fork();
         // this is child
@@ -553,13 +553,25 @@ void testRestore() {
 
 void testAutoExpiration() {
     string mmapID = "testAutoExpire";
-    auto mmkv = MMKV::mmkvWithID(mmapID);
+    // disable auto expire by config
+    auto config = MMKVConfig();
+    config.enableKeyExpire = false;
+    config.recover = OnErrorRecover;
+    // config.itemSizeLimit = 1;
+    auto mmkv = MMKV::mmkvWithID(mmapID, config);
     mmkv->clearAll();
     mmkv->trim();
-    mmkv->disableAutoKeyExpire();
+    mmkv->disableAutoKeyExpire(); // this call become a no-op
 
     mmkv->set(true, "auto_expire_key_1");
-    mmkv->enableAutoKeyExpire(1);
+
+    // enable auto expire by config
+    mmkv->close();
+    config.enableKeyExpire = true;
+    config.expiredInSeconds = 1;
+    mmkv = MMKV::mmkvWithID(mmapID, config);
+    mmkv->enableAutoKeyExpire(1); // this call become a no-op
+
     mmkv->set("never_expire_value_1", "never_expire_key_1", MMKV::ExpireNever);
     mmkv->set("", "never_expire_key_2", MMKV::ExpireNever);
     mmkv->set(MMBuffer(), "never_expire_key_3", MMKV::ExpireNever);
@@ -1332,6 +1344,7 @@ MMKV* testMMKV(const string& mmapID, const string* cryptKey, bool aes256, bool d
     return kv;
 }
 
+#ifndef MMKV_DISABLE_CRYPT
 void testReKey() {
     string mmapID = "test/AES_reKey1";
     MMKV* kv = testMMKV(mmapID, nullptr, false, false, nullptr);
@@ -1350,25 +1363,30 @@ void testReKey() {
     kv->clearMemoryCache();
     testMMKV(mmapID, nullptr, false, true, nullptr);
 }
+#endif
 
-void MyLogHandler(MMKVLogLevel level, const char *file, int line, const char *function, const string &message) {
+class MyMMKVHandler : public mmkv::MMKVHandler {
+public:
+    void mmkvLog(MMKVLogLevel level, const char *file, int line, const char *function, MMKVLog_t message) override {
+        auto desc = [level] {
+            switch (level) {
+                case MMKVLogDebug:
+                    return "D";
+                case MMKVLogInfo:
+                    return "I";
+                case MMKVLogWarning:
+                    return "W";
+                case MMKVLogError:
+                    return "E";
+                default:
+                    return "N";
+            }
+        }();
+        printf("redirecting-[%s] <%s:%d::%s> %s\n", desc, file, line, function, message.c_str());
+    }
+};
 
-    auto desc = [level] {
-        switch (level) {
-            case MMKVLogDebug:
-                return "D";
-            case MMKVLogInfo:
-                return "I";
-            case MMKVLogWarning:
-                return "W";
-            case MMKVLogError:
-                return "E";
-            default:
-                return "N";
-        }
-    }();
-    printf("redirecting-[%s] <%s:%d::%s> %s\n", desc, file, line, function, message.c_str());
-}
+static MyMMKVHandler g_handler;
 
 void testReadonlyCrash() {
     std::string *key = nullptr;
@@ -1381,6 +1399,48 @@ void testReadonlyCrash() {
     printf("value: %s\n", tmp.c_str());
 }
 
+void testOversizedKey() {
+    auto mmkv = MMKV::mmkvWithID("testOversizedKey");
+    mmkv->clearAll();
+
+    // key at the boundary (65531 bytes) should work
+    {
+        string key(65531, 'A');
+        string value = "boundary_value";
+        auto ret = mmkv->set(value, key);
+        assert(ret);
+        string out;
+        ret = mmkv->getString(key, out);
+        assert(ret && out == value);
+        mmkv->removeValueForKey(key);
+    }
+    // key at 65532 bytes must be rejected (uint16_t overflow threshold)
+    {
+        string key(65532, 'B');
+        auto ret = mmkv->set("V", key);
+        assert(!ret);
+        string out;
+        ret = mmkv->getString(key, out);
+        assert(!ret);
+    }
+    // much larger key must also be rejected
+    {
+        string key(70000, 'C');
+        auto ret = mmkv->set("V", key);
+        assert(!ret);
+    }
+    // verify normal keys still work after oversized key rejection
+    {
+        mmkv->set("world", "normal_key");
+        string out;
+        auto ret = mmkv->getString("normal_key", out);
+        assert(ret && out == "world");
+    }
+
+    mmkv->clearAll();
+    printf("test oversized key: passed\n");
+}
+
 int main() {
     locale::global(locale(""));
     wcout.imbue(locale(""));
@@ -1391,7 +1451,7 @@ int main() {
     testNameSpace();
 
     string rootDir = "/tmp/mmkv";
-    MMKV::initializeMMKV(rootDir, MMKVLogInfo, MyLogHandler);
+    MMKV::initializeMMKV(rootDir, MMKVLogInfo, &g_handler);
     // MMKV::setLogLevel(MMKVLogNone);
     // MMKV::registerLogHandler(MyLogHandler);
 
@@ -1427,5 +1487,8 @@ int main() {
     testReadonlyCrash();
     testImport();
     itemSizeHolderTest();
+#ifndef MMKV_DISABLE_CRYPT
     testReKey();
+#endif
+    testOversizedKey();
 }

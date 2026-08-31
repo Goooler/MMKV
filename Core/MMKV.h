@@ -33,10 +33,12 @@
 #endif
 
 #include "MiniPBCoder.h"
+#include "MMKVHandler.h"
 
 #include <cstdint>
 #include <type_traits>
 #include <cstring>
+#include <optional>
 
 namespace mmkv {
 class CodedOutputData;
@@ -65,6 +67,28 @@ enum MMKVMode : uint32_t {
 static inline MMKVMode operator | (MMKVMode one, MMKVMode other) {
     return static_cast<MMKVMode>(static_cast<uint32_t>(one) | static_cast<uint32_t>(other));
 }
+
+// all-in-one configuration for creating MMKV instance
+struct MMKVConfig {
+    MMKVMode mode = MMKV_SINGLE_PROCESS;
+
+#ifndef MMKV_DISABLE_CRYPT
+    bool aes256 = false; // using AES-256 key length
+    const std::string *cryptKey = nullptr;
+#endif
+
+    const MMKVPath_t *rootPath = nullptr;
+
+    size_t expectedCapacity = 0; // the initial file size
+
+    std::optional<bool> enableKeyExpire = std::nullopt;
+    uint32_t expiredInSeconds = 0; // ExpireNever = 0
+
+    bool enableCompareBeforeSet = false;
+
+    std::optional<MMKVRecoverStrategic> recover = std::nullopt; // if not set, use the old style callback
+    uint32_t itemSizeLimit = 0; // the size limit of a key-value pair, reject insert if pass limit
+};
 
 #define MMKV_OUT
 
@@ -95,9 +119,8 @@ concept MMKV_SUPPORTED_VALUE_TYPE = MMKV_SUPPORTED_PRIMITIVE_VALUE_TYPE<T> || MM
 #endif // MMKV_HAS_CPP20
 
 class MMKV_EXPORT MMKV {
-#ifndef MMKV_ANDROID
-    MMKV(const std::string &mmapID, MMKVMode mode, const std::string *cryptKey, const MMKVPath_t *rootPath, size_t expectedCapacity = 0, bool aes256 = false);
-#else // defined(MMKV_ANDROID)
+    MMKV(const std::string &mmapID, const MMKVConfig &config);
+#ifdef MMKV_ANDROID
 #ifndef MMKV_OHOS
     mmkv::FileLock *m_fileModeLock;
     mmkv::InterProcessLock *m_sharedProcessModeLock;
@@ -106,9 +129,7 @@ class MMKV_EXPORT MMKV {
     mmkv::FileLock *m_fileMigrationLock;
     mmkv::InterProcessLock *m_sharedMigrationLock;
 
-    MMKV(const std::string &mmapID, int size, MMKVMode mode, const std::string *cryptKey, const MMKVPath_t *rootPath, size_t expectedCapacity = 0, bool aes256 = false);
-
-    MMKV(const std::string &mmapID, int ashmemFD, int ashmemMetaFd, const std::string *cryptKey = nullptr, bool aes256 = false);
+    MMKV(const std::string &mmapID, int ashmemFD, int ashmemMetaFd, const MMKVConfig &config);
 #endif // MMKV_ANDROID
 
     ~MMKV();
@@ -145,6 +166,10 @@ class MMKV_EXPORT MMKV {
     uint32_t m_expiredInSeconds = ExpireNever;
 
     bool m_enableCompareBeforeSet = false;
+
+    std::optional<MMKVRecoverStrategic> m_recoverStrategic = std::nullopt;
+
+    uint32_t m_itemSizeLimit = 0;
 
 #ifdef MMKV_APPLE
 #ifdef __OBJC__
@@ -246,6 +271,7 @@ class MMKV_EXPORT MMKV {
 #endif
 
     void notifyContentChanged();
+    void notifyContentLoaded();
 
 #if defined(MMKV_ANDROID) && !defined(MMKV_DISABLE_CRYPT)
     void checkReSetCryptKey(int fd, int metaFD, const std::string *cryptKey, bool aes256);
@@ -256,6 +282,7 @@ class MMKV_EXPORT MMKV {
     static size_t restoreAllFromDirectory(const MMKVPath_t &srcDir, const MMKVPath_t &dstDir, bool isInSpecialDir);
 
     static uint32_t getCurrentTimeInSecond();
+    static uint32_t safeExpirationPlusCurrentTime(uint32_t expireDuration);
     uint32_t getExpireTimeForKey(MMKVKey_t key);
     mmkv::MMBuffer getDataWithoutMTimeForKey(MMKVKey_t key);
     size_t filterExpiredKeys();
@@ -264,14 +291,24 @@ class MMKV_EXPORT MMKV {
     void shared_lock();
     void shared_unlock();
 
+    // assuming rootPath is absolute
+    static MMKV *getMMKVWithID(const std::string &mmapID, const MMKVConfig &config);
+
+    void configAutoExipreIfNeeded(const MMKVConfig &config);
+
+    bool checkSizeLimit(size_t size, const mmkv::MMBuffer &keyData, uint32_t originKeyLength);
+
 public:
     // call this before getting any MMKV instance
-    static void initializeMMKV(const MMKVPath_t &rootDir, MMKVLogLevel logLevel = MMKVLogInfo, mmkv::LogHandler handler = nullptr);
+    static void initializeMMKV(const MMKVPath_t &rootDir, MMKVLogLevel logLevel = MMKVLogInfo, mmkv::MMKVHandler *handler = nullptr);
 
     // a generic purpose instance
     static MMKV *defaultMMKV(MMKVMode mode = MMKV_SINGLE_PROCESS, const std::string *cryptKey = nullptr, bool aes256 = false);
+    static MMKV *defaultMMKV(const MMKVConfig &config);
 
-#ifndef MMKV_ANDROID
+    // mmapID: any unique ID (com.tencent.xin.pay, etc.)
+    // if you want a per-user mmkv, you could merge user-id within mmapID
+    static MMKV *mmkvWithID(const std::string &mmapID, const MMKVConfig &config);
 
     // mmapID: any unique ID (com.tencent.xin.pay, etc.)
     // if you want a per-user mmkv, you could merge user-id within mmapID
@@ -283,18 +320,8 @@ public:
                             size_t expectedCapacity = 0,
                             bool aes256 = false);
 
-#else // defined(MMKV_ANDROID)
-
-    // mmapID: any unique ID (com.tencent.xin.pay, etc.)
-    // if you want a per-user mmkv, you could merge user-id within mmapID
-    // cryptKey: 16 bytes at most
-    static MMKV *mmkvWithID(const std::string &mmapID,
-                            int size = mmkv::DEFAULT_MMAP_SIZE,
-                            MMKVMode mode = MMKV_SINGLE_PROCESS,
-                            const std::string *cryptKey = nullptr,
-                            const MMKVPath_t *rootPath = nullptr,
-                            size_t expectedCapacity = 0,
-                            bool aes256 = false);
+#ifdef MMKV_ANDROID
+    static MMKV *mmkvWithAshmemFD(const std::string &mmapID, int fd, int metaFD, const MMKVConfig &config);
 
     static MMKV *mmkvWithAshmemFD(const std::string &mmapID, int fd, int metaFD, const std::string *cryptKey = nullptr,
                                   bool aes256 = false);
@@ -440,6 +467,10 @@ public:
 
     bool getString(std::string_view key, std::string &result, bool inplaceModification = true);
 
+    mmkv::MMBuffer getBytes(std::string_view key);
+
+    bool getBytes(std::string_view key, mmkv::MMBuffer &result);
+
 #ifdef MMKV_HAS_CPP20
     template<MMKV_SUPPORTED_VECTOR_VALUE_TYPE T>
     bool getVector(std::string_view key, T &result);
@@ -534,8 +565,8 @@ public:
     bool disableCompareBeforeSet();
 
     bool isExpirationEnabled() const { return m_enableKeyExpire; }
-    bool isEncryptionEnabled() const { return m_dicCrypt; }
-    bool isCompareBeforeSetEnabled() const { return m_enableCompareBeforeSet && !m_enableKeyExpire && !m_dicCrypt; }
+    bool isEncryptionEnabled() const { return m_crypter != nullptr; }
+    bool isCompareBeforeSetEnabled() const { return m_enableCompareBeforeSet && !m_enableKeyExpire && !m_crypter; }
 
 #ifdef MMKV_APPLE
 #ifdef __OBJC__
@@ -577,8 +608,10 @@ public:
     // return count of items imported
     size_t importFrom(MMKV *src);
 
-    // call this method if the instance is no longer needed in the near future
-    // any subsequent call to the instance is undefined behavior
+    // Permanently close and destroy this instance. This is a terminal operation.
+    // All references backed by this native instance become invalid immediately.
+    // The caller must ensure close() does not race with any other operation and
+    // no reference is used afterward.
     void close();
 
     // call this method if you are facing memory-warning
@@ -625,24 +658,13 @@ public:
     // check if content been changed by other process
     void checkContentChanged();
 
-    // called when content is changed by other process
-    // doesn't guarantee real-time notification
-    static void registerContentChangeHandler(mmkv::ContentChangeHandler handler);
-    static void unRegisterContentChangeHandler();
-
-    // by default MMKV will discard all datas on failure
-    // return `OnErrorRecover` to recover any data from file
-    static void registerErrorHandler(mmkv::ErrorHandler handler);
-    static void unRegisterErrorHandler();
+    // register a unified callback handler for MMKV
+    static void registerHandler(mmkv::MMKVHandler *handler);
+    static void unRegisterHandler();
 
     // MMKVLogInfo by default
     // pass MMKVLogNone to disable all logging
     static void setLogLevel(MMKVLogLevel level);
-
-    // by default MMKV will print log to the console
-    // implement this method to redirect MMKV's log
-    static void registerLogHandler(mmkv::LogHandler handler);
-    static void unRegisterLogHandler();
 
     // detect if the MMKV file is valid or not
     // Note: Don't use this to check the existence of the instance, the return value is undefined if the file was never created.
@@ -658,6 +680,8 @@ public:
     // just forbid it for possibly misuse
     explicit MMKV(const MMKV &other) = delete;
     MMKV &operator=(const MMKV &other) = delete;
+
+    friend class mmkv::NameSpace;
 };
 
 #if defined(MMKV_HAS_CPP20)
@@ -676,7 +700,7 @@ bool MMKV::set(const T& value, MMKVKey_t key, uint32_t expireDuration) {
         auto tmp = mmkv::MMBuffer(data.length() + ConstFixed32Size);
         auto ptr = (uint8_t *) tmp.getPtr();
         memcpy(ptr, data.getPtr(), data.length());
-        auto time = (expireDuration != ExpireNever) ? getCurrentTimeInSecond() + expireDuration : ExpireNever;
+        auto time = (expireDuration != ExpireNever) ? safeExpirationPlusCurrentTime(expireDuration) : ExpireNever;
         memcpy(ptr + data.length(), &time, ConstFixed32Size);
         data = std::move(tmp);
     }
@@ -724,7 +748,8 @@ public:
     // return the absolute root dir of NameSpace
     const MMKVPath_t &getRootDir() { return m_rootDir; }
 
-#ifndef MMKV_ANDROID
+    MMKV *mmkvWithID(const std::string &mmapID, const MMKVConfig &config);
+
     // mmapID: any unique ID (com.tencent.xin.pay, etc.)
     // if you want a per-user mmkv, you could merge user-id within mmapID
     // cryptKey: 16 bytes at most
@@ -733,19 +758,6 @@ public:
                      const std::string *cryptKey = nullptr,
                      size_t expectedCapacity = 0,
                      bool aes256 = false);
-
-#else // defined(MMKV_ANDROID)
-
-    // mmapID: any unique ID (com.tencent.xin.pay, etc.)
-    // if you want a per-user mmkv, you could merge user-id within mmapID
-    // cryptKey: 16 bytes at most
-    MMKV *mmkvWithID(const std::string &mmapID,
-                     int size = mmkv::DEFAULT_MMAP_SIZE,
-                     MMKVMode mode = MMKV_SINGLE_PROCESS,
-                     const std::string *cryptKey = nullptr,
-                     size_t expectedCapacity = 0,
-                     bool aes256 = false);
-#endif // MMKV_ANDROID
 
     // backup one MMKV instance to dstDir
     bool backupOneToDirectory(const std::string &mmapID, const MMKVPath_t &dstDir);
@@ -772,7 +784,7 @@ public:
     // check the existence of the MMKV file
     bool checkExist(const std::string &mmapID);
 
-   friend class MMKV_NAMESPACE_PREFIX::MMKV;
+    friend class MMKV_NAMESPACE_PREFIX::MMKV;
 };
 
 }

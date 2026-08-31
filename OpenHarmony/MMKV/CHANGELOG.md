@@ -1,4 +1,21 @@
 # MMKV for HarmonyOS NEXT Change Log
+## v2.4.2 / 2026-08-21
+* Keep up with MMKV Core v2.4.2 hotfix and data-safety fixes.
+* **Fix:** Corrected the one-year expiration constant.
+* **Change:** Added the package author email to OHPM metadata.
+
+## v2.4.1 / 2026-07-30
+* Keep up with MMKV Core v2.4.1 maintenance and data-safety fixes.
+* **Fix:** Improved MMKV instance lifecycle handling and clarified destructive `close()` semantics.
+* **Change:** Cleaned up project signing/build configuration and removed checked-in Hvigor dependency archives.
+
+## v2.4.0 / 2026-03-18
+* **Feature:** Refactored the callback system into a unified `MMKVHandler` interface. Added `onMMKVContentLoadSuccessfully` callback.
+* **Feature:** Added `MMKVConfig` for all-in-one instance configuration.
+* **Feature:** Added `defaultMMKVWithConfig()` for creating the default instance with full configuration.
+* **Fix:** Robust check on encryption mode.
+* Merge ashmem size with `expectedCapacity`.
+
 ## v2.3.0 / 2025-12-03
 
 This release introduces **AES-256 encryption** for enhanced security.

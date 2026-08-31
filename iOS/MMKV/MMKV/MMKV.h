@@ -37,8 +37,44 @@ typedef NS_ENUM(UInt32, MMKVExpireDuration) {
     MMKVExpireInHour = 60 * 60,
     MMKVExpireInDay = 24 * 60 * 60,
     MMKVExpireInMonth = 30 * 24 * 60 * 60,
-    MMKVExpireInYear = 365 * 30 * 24 * 60 * 60,
+    MMKVExpireInYear = 365 * 24 * 60 * 60,
 };
+
+// all-in-one configuration for creating MMKV instance
+typedef struct {
+    MMKVMode mode; // = MMKVSingleProcess;
+
+    // using AES-256 key length
+    BOOL aes256; // = NO;
+    NSData * _Nullable cryptKey; // = nil;
+
+    NSString * _Nullable rootPath; // = nil;
+
+    // the initial file size
+    size_t expectedCapacity; // = 0;
+
+    /// @YES / @NO to set this value
+    /// if nil, auto expire is off
+    NSNumber * _Nullable enableKeyExpire; // = nil;
+    uint32_t expiredInSeconds; // = MMKVExpireNever;
+
+    BOOL enableCompareBeforeSet; // = NO;
+
+    // if not set, use the old style callback
+    MMKVRecoverStrategic recover; // = MMKVOnErrorNotSet;
+
+    // the size limit of a key-value pair, reject insert if pass limit
+    uint32_t itemSizeLimit; // = 0;
+} MMKVConfig;
+
+static inline MMKVConfig MMKVConfigDefault(void) {
+    MMKVConfig config = {
+        .mode = MMKVSingleProcess, .aes256 = NO, .cryptKey = nil, .rootPath = nil,
+        .expectedCapacity = 0, .enableKeyExpire = nil, .expiredInSeconds = MMKVExpireNever,
+        .enableCompareBeforeSet = NO, .recover = MMKVOnErrorNotSet, .itemSizeLimit = 0,
+    };
+    return config;
+}
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -87,6 +123,9 @@ class MMKV;
 + (nullable instancetype)defaultMMKV;
 
 /// an encrypted generic purpose instance (in MMKVSingleProcess mode)
++ (nullable instancetype)defaultMMKVWithConfig:(MMKVConfig)config;
+
+/// an encrypted generic purpose instance (in MMKVSingleProcess mode)
 + (nullable instancetype)defaultMMKVWithCryptKey:(nullable NSData *)cryptKey;
 
 /// an encrypted generic purpose instance (in MMKVSingleProcess mode)
@@ -95,6 +134,9 @@ class MMKV;
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 + (nullable instancetype)mmkvWithID:(NSString *)mmapID NS_SWIFT_NAME(init(mmapID:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
++ (nullable instancetype)mmkvWithID:(NSString *)mmapID config:(MMKVConfig)config NS_SWIFT_NAME(init(mmapID:config:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param expectedCapacity the file size you expected when opening or creating file
@@ -359,8 +401,11 @@ class MMKV;
 // return count of items imported
 - (size_t)importFrom:(MMKV *)src;
 
-/// call this method if the instance is no longer needed in the near future
-/// any subsequent call to the instance is undefined behavior
+/// Permanently close the underlying native MMKV instance.
+/// All references backed by the same native instance become invalid immediately.
+/// The caller must ensure no operation is running and no reference is used
+/// afterward. Discard every reference before reopening the same ID. Repeated
+/// close on this Objective-C wrapper is harmless after its handle is cleared.
 - (void)close;
 
 /// call this method if you are facing memory-warning
@@ -435,7 +480,8 @@ class MMKV;
 - (void)checkContentChanged;
 
 + (void)registerHandler:(id<MMKVHandler>)handler __attribute__((deprecated("use +initializeMMKV:logLevel:handler: instead")));
-+ (void)unregiserHandler;
++ (void)unregisterHandler;
++ (void)unregiserHandler __attribute__((deprecated("typo preserved for backward compatibility; use +unregisterHandler instead")));
 
 /// MMKVLogInfo by default
 /// MMKVLogNone to disable all logging
@@ -473,6 +519,9 @@ class MMKV;
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 - (nullable MMKV *)mmkvWithID:(NSString *)mmapID NS_SWIFT_NAME(mmkv(mmapID:));
+
+/// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
+- (nullable MMKV *)mmkvWithID:(NSString *)mmapID config:(MMKVConfig)config NS_SWIFT_NAME(init(mmapID:config:));
 
 /// @param mmapID any unique ID (com.tencent.xin.pay, etc), if you want a per-user mmkv, you could merge user-id within mmapID
 /// @param expectedCapacity the file size you expected when opening or creating file

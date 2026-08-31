@@ -1,4 +1,117 @@
 # MMKV Change Log
+## v2.4.2 / 2026-08-21
+
+This is a hotfix release based on v2.4.1. It adds targeted encrypted-write and backup/restore checks, fixes Kotlin Multiplatform consistency issues, and repairs native package build/link regressions.
+
+### Changes for All Platforms
+* **Fix:** Hardened cryptographic random-IV generation, secure key cleanup, encryption-mode changes, and bounded protobuf writes.
+* **Fix:** Prevented self-backup/restore through equivalent directory aliases, fixed uncached backup locking, rejected incomplete restore sources, and handled IDs ending in `.crc`.
+* **Fix:** Corrected the one-year expiration constant, which previously represented 30 years on Android, iOS/macOS, HarmonyOS NEXT, Flutter, and Go.
+* **Fix:** Made directory walking work with long paths and made `PBUtility.h` include its `MMBuffer` dependency directly.
+
+### Kotlin Multiplatform
+* **Fix:** Preserved empty byte arrays and UTF-8 string values consistently across supported targets.
+* **Fix:** Aligned key validation and expiration behavior across Android and iOS, including consistent rejection of embedded NUL keys.
+
+### iOS/macOS
+* **Fix:** Fixed secure key wiping compilation on Apple platforms ([#1675](https://github.com/tencent/mmkv/issues/1675)).
+
+### HarmonyOS NEXT
+* **Change:** Added the package author email to OHPM metadata.
+
+### Flutter
+* **Fix:** Fixed Swift Package Manager builds so Dart FFI entry points remain linked and exported on iOS/macOS ([#1676](https://github.com/tencent/mmkv/issues/1676)).
+
+### Win32
+* **Fix:** Fixed the C bridge build with MSVC and its UTF-8/wide-path boundaries ([#1681](https://github.com/tencent/mmkv/issues/1681)).
+
+### Build
+* **Change:** Added a reusable, guarded cleanup script for generated artifacts.
+
+## v2.4.1 / 2026-07-30
+
+This is a maintenance release based on v2.4.0. It focuses on data-safety fixes, encrypted-file compatibility, packaging/build cleanup, and experimental Kotlin Multiplatform support for Android and iOS.
+
+### Changes for All Platforms
+* **Fix:** Improved MMKV instance lifecycle handling with safer wrapper ownership, native lock teardown, and clarified destructive `close()` semantics.
+* **Fix:** Fixed an oversized-key corruption bug where keys longer than the internal `uint16_t` holder limit could overflow key/value metadata and corrupt subsequent reads.
+* **Fix:** Fixed an `expireDuration` overflow bug ([#1665](https://github.com/tencent/mmkv/issues/1665)). Very large expiration durations are now clamped safely instead of wrapping around.
+* **Fix:** Improved encrypted MMKV random-IV upgrade behavior. Existing encrypted files using the older IV format now trigger a full writeback when possible so they are upgraded to the random-IV format.
+* **Fix:** Added safer random-IV reset behavior when clearing memory cache for encrypted instances.
+* **Fix:** Fixed `-Wmissing-braces` warnings in Android, Win32, and POSIX demo code.
+* **Change:** Added extra mmap/munmap logging to help diagnose file mapping lifecycle issues.
+* **Feature:** Added a universal C interface (`Core/cbridge`) for MMKV Core, with NameSpace support and a pure C demo. The C bridge is also used by the KMP iOS package.
+
+### Kotlin Multiplatform
+* **Experimental:** Added Kotlin Multiplatform support for Android and iOS via the Gradle package `com.tencent:mmkv-kmp:2.4.1`. The API and artifact layout may change in a future release.
+* Supported targets: Android, `iosArm64`, `iosSimulatorArm64`, and `iosX64`.
+* Android delegates to the native `com.tencent:mmkv:2.4.1` AAR. iOS embeds MMKV Core through the C bridge in the published native KLIBs.
+* **Fix:** Added platform-parity buffer/state APIs, preserved empty byte arrays on iOS, respected handler notification preferences, and added Android device plus Kotlin/Native smoke tests.
+* **Fix:** Improved MMKV instance lifecycle handling and clarified destructive `close()` semantics.
+
+### Android
+* **Fix:** Added regression coverage for the expiration overflow issue.
+* **Fix:** Improved Android CMake header-export detection for builds where `ANDROID_ABI` is defined, including local Android artifact publication builds.
+
+### iOS/macOS
+* **Feature:** Added the static SwiftPM product `MMKVAppExtension-static`.
+* **Fix:** Excluded the standalone C bridge from the Objective-C++ SwiftPM Core target and gave each wrapper target its own privacy manifest resource.
+* **Feature:** Added `+[MMKV unregisterHandler]` as the correctly spelled handler-unregistration API. The previous typo'd `+unregiserHandler` remains available for source/binary compatibility and forwards to the new API.
+
+### HarmonyOS NEXT
+* **Change:** Cleaned up project signing/build configuration and removed checked-in Hvigor dependency archives.
+* **Fix:** Improved MMKV instance lifecycle handling and clarified destructive `close()` semantics.
+* **Change:** Prepared the `@tencent/mmkv` package metadata and documentation for v2.4.1.
+
+### Flutter
+* **Feature:** Added Swift Package Manager support for the Apple platform implementation and migrated the iOS/macOS examples to SwiftPM. CocoaPods remains available as a fallback.
+* **Fix:** Improved MMKV instance lifecycle handling and clarified destructive `close()` semantics.
+
+### POSIX
+* **Feature:** Added a pure C demo for the new C bridge.
+* **Fix:** Added regression coverage for oversized-key rejection and expiration overflow.
+
+### Win32
+* **Fix:** Fixed `-Wmissing-braces` warnings in Win32 file handling code.
+
+## v2.4.0 / 2026-03-18
+
+This release introduces a **unified `MMKVHandler` callback interface** across all platforms, replacing scattered per-callback registration with a single, OO-style handler. It also adds the `MMKVConfig` all-in-one configuration and several bug fixes.
+
+### Changes for All Platforms
+* **Feature:** Refactored the callback system into a **unified `MMKVHandler`** interface. All callbacks (log redirecting, error handling, content change notification, content loaded notification) are now grouped in a single handler registered via `registerHandler()`. The old per-callback `registerLogHandler()` / `registerErrorHandler()` / `registerContentChangeHandler()` / `registerContentLoadedHandler()` APIs have been removed.
+* **Feature:** Added `onMMKVContentLoadSuccessfully` callback, triggered when an MMKV file is loaded/mapped successfully.
+* **Feature:** Added `MMKVConfig` for all-in-one instance configuration, supporting all options (`mode`, `cryptKey`, `aes256`, `expectedCapacity`, `enableKeyExpire`, `expiredInSeconds`, `enableCompareBeforeSet`, `recover`, `itemSizeLimit`) in a single struct/class.
+* **Feature:** Added `defaultMMKV(config)` variant for creating the default instance with full configuration.
+* **Fix:** Robust check on encryption mode ([#1642](https://github.com/tencent/mmkv/issues/1642)).
+* **Fix:** Protect from `delete` file failure on corrupted files.
+* **Fix:** Protect from `m_file` not valid for `isDiskOfMMAPFileCorrupted()`.
+* **Fix:** Reduce `absolutePath()` calls as much as possible.
+* Drop old-style actual size downgrade support.
+* MMKV must be compiled with **C++17**.
+
+### Android
+* **Change:** Merged `MMKVContentChangeNotification` into `MMKVHandler`. The old `MMKVContentChangeNotification` interface is now `@Deprecated`.
+* **Fix:** Fix `fcntl()` OFD lock failure on ashmem ([#1637](https://github.com/tencent/mmkv/issues/1637)).
+* Merge ashmem size with `expectedCapacity`.
+* Correctly collect so-symbols.
+
+### iOS/macOS
+* **Feature:** Added `getBytes()` with `string_view` key for ObjC++.
+* **Fix:** Fixed a memory leak on getting `NameSpace` instance.
+* Support **Swift Package Manager** ([#535](https://github.com/tencent/mmkv/issues/535)).
+* Fix compile error on `tryAtomicRename()`.
+
+### HarmonyOS NEXT
+* Merge ashmem size with `expectedCapacity`.
+
+### Flutter
+* Updated to use the unified `MMKVHandler` callback interface.
+
+### Win32
+* Fix: Convert log message to UTF-8 for Win32 client.
+* Verify all pages for corrupted file detection.
+
 ## v2.3.0 / 2025-12-03 (Breaking Change)
 
 This release is a **breaking change** and introduces **AES-256 encryption** for enhanced security.
@@ -15,6 +128,7 @@ This release is a **breaking change** and introduces **AES-256 encryption** for 
 
 * **Change:** Dropped support for the **armv7k** architecture on Apple Watch. To adapt, you should add `armv7k` to the **"Excluded Architectures"** setting for your Apple Watch App or Extension target.
 * **Important:** Do not upgrade to this version if you need to maintain `armv7k` support.
+* **Change:** Dropped deprecated methods that use the `relativePath:` parameter. If you were using these methods, please migrate to those using the `rootPath:` parameter instead.
 
 ### POSIX
 

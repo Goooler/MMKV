@@ -36,6 +36,7 @@
 #    include <sys/sysctl.h>
 #    include "MMKV_OSX.h"
 #    include "MMKVLog.h"
+#    include <limits>
 
 #    ifdef MMKV_IOS
 #        include <sys/mman.h>
@@ -225,6 +226,16 @@ bool MMKV::getString(std::string_view key, std::string &result, bool inplaceModi
     return getString(hybridKey.str, result, inplaceModification);
 }
 
+mmkv::MMBuffer MMKV::getBytes(std::string_view key) {
+    HybridString hybridKey = key;
+    return getBytes(hybridKey.str);
+}
+
+bool MMKV::getBytes(std::string_view key, mmkv::MMBuffer &result) {
+    HybridString hybridKey = key;
+    return getBytes(hybridKey.str, result);
+}
+
 mmkv::MMBuffer MMKV::getDataForKey(std::string_view key) {
     HybridString hybridKey = key;
     return getDataForKey(hybridKey.str);
@@ -293,10 +304,21 @@ bool MMKV::set(NSObject<NSCoding> *__unsafe_unretained obj, MMKVKey_t key, uint3
         } else {
             MMBuffer data(tmpData, MMBufferNoCopy);
             if (data.length() > 0) {
-                auto tmp = MMBuffer(pbMMBufferSize(data) + Fixed32Size);
+                if (data.length() > numeric_limits<uint32_t>::max()) {
+                    MMKVError("[%s] reject value too large to encode: %zu", m_mmapID.c_str(), data.length());
+                    return false;
+                }
+                auto dataLength = static_cast<uint32_t>(data.length());
+                uint64_t encodedLength =
+                    static_cast<uint64_t>(dataLength) + pbRawVarint32Size(dataLength) + Fixed32Size;
+                if (encodedLength > numeric_limits<uint32_t>::max()) {
+                    MMKVError("[%s] reject expiring value too large to encode: %zu", m_mmapID.c_str(), data.length());
+                    return false;
+                }
+                auto tmp = MMBuffer(static_cast<size_t>(encodedLength));
                 CodedOutputData output(tmp.getPtr(), tmp.length());
                 output.writeData(data);
-                auto time = (expireDuration != 0) ? getCurrentTimeInSecond() + expireDuration : 0;
+                auto time = (expireDuration != ExpireNever) ? safeExpirationPlusCurrentTime(expireDuration) : ExpireNever;
                 output.writeRawLittleEndian32(UInt32ToInt32(time));
                 data = std::move(tmp);
             }
@@ -321,10 +343,15 @@ bool MMKV::set(NSObject<NSCoding> *__unsafe_unretained obj, MMKVKey_t key, uint3
                     } else {
                         MMBuffer data(archived, MMBufferNoCopy);
                         if (data.length() > 0) {
+                            if (data.length() > numeric_limits<uint32_t>::max() - Fixed32Size) {
+                                MMKVError("[%s] reject expiring archived value too large to encode: %zu",
+                                          m_mmapID.c_str(), data.length());
+                                return false;
+                            }
                             auto tmp = MMBuffer(data.length() + Fixed32Size);
                             CodedOutputData output(tmp.getPtr(), tmp.length());
                             output.writeRawData(data); // NSKeyedArchiver has its own size management
-                            auto time = (expireDuration != 0) ? getCurrentTimeInSecond() + expireDuration : 0;
+                            auto time = (expireDuration != ExpireNever) ? safeExpirationPlusCurrentTime(expireDuration) : ExpireNever;
                             output.writeRawLittleEndian32(UInt32ToInt32(time));
                             data = std::move(tmp);
                         }
@@ -499,8 +526,11 @@ bool MMKV::removeValuesForKeys(NSArray *arrKeys) {
     }
     if (deleteCount > 0) {
         m_hasFullWriteback = false;
-
-        return fullWriteback();
+        auto ret = fullWriteback();
+        if (!ret) {
+            clearMemoryCache();
+        }
+        return ret;
     }
     return true;
 }

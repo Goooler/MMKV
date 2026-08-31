@@ -206,6 +206,10 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
 
         String ret = doInitialize(rootDir, cacheDir, loader, logLevel, gWantLogReDirecting, hasCallback, nativeLogHandler);
 
+        if (handler != null && handler.wantContentChangeNotification()) {
+            setWantsContentChangeNotify(true);
+        }
+
         // disable process mode in release build
         // FIXME: Find a better way to getApplicationInfo() without using context.
         //  If any one knows how, you're welcome to make a contribution.
@@ -386,12 +390,31 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV mmkvWithID(String mmapID) throws RuntimeException {
+        return mmkvWithID(mmapID, new MMKVConfig());
+    }
+
+    /**
+     * Create an MMKV instance with an unique ID (in single-process mode).
+     *
+     * @param mmapID The unique ID of the MMKV instance.
+     * @param config The all-in-one configuration for the MMKV instance.
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV mmkvWithID(String mmapID, MMKVConfig config) throws RuntimeException {
         if (rootDir == null) {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, null, 0, false);
-        return checkProcessMode(handle, mmapID, SINGLE_PROCESS_MODE);
+        int enableKeyExpire = (config.enableKeyExpire != null) ? (config.enableKeyExpire ? 1 : 0) : -1;
+        Integer value = recoverIndex.get(config.recover);
+        int recover = (value == null) ? -1 : value;
+
+        long handle = getMMKVWithID(mmapID, config.mode, config.cryptKey, config.rootPath, config.expectedCapacity,
+                config.aes256, enableKeyExpire, config.expiredInSeconds, config.enableCompareBeforeSet,
+                recover, config.itemSizeLimit);
+
+        return checkProcessMode(handle, mmapID, config.mode);
     }
 
     /**
@@ -403,12 +426,9 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode) throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, null, null, 0, false);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -421,12 +441,10 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode, long expectedCapacity) throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, null, null, expectedCapacity, false);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.expectedCapacity = expectedCapacity;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -439,12 +457,10 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey) throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, null, 0, false);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.cryptKey = cryptKey;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -458,12 +474,11 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256) throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, null, 0, aes256);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.aes256 = aes256;
+        config.cryptKey = cryptKey;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -475,12 +490,9 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV mmkvWithID(String mmapID, String rootPath) throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, rootPath, 0, false);
-        return checkProcessMode(handle, mmapID, SINGLE_PROCESS_MODE);
+        MMKVConfig config = new MMKVConfig();
+        config.rootPath = rootPath;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -493,12 +505,10 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV mmkvWithID(String mmapID, String rootPath, long expectedCapacity) throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, SINGLE_PROCESS_MODE, null, rootPath, expectedCapacity, false);
-        return checkProcessMode(handle, mmapID, SINGLE_PROCESS_MODE);
+        MMKVConfig config = new MMKVConfig();
+        config.rootPath = rootPath;
+        config.expectedCapacity = expectedCapacity;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -514,12 +524,12 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, String rootPath, long expectedCapacity)
             throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, expectedCapacity, false);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.cryptKey = cryptKey;
+        config.rootPath = rootPath;
+        config.expectedCapacity = expectedCapacity;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -536,12 +546,13 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256, String rootPath,
                                   long expectedCapacity) throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, expectedCapacity, aes256);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.aes256 = aes256;
+        config.cryptKey = cryptKey;
+        config.rootPath = rootPath;
+        config.expectedCapacity = expectedCapacity;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -556,12 +567,11 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, String rootPath)
             throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, false);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.cryptKey = cryptKey;
+        config.rootPath = rootPath;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -577,12 +587,12 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV mmkvWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256, String rootPath)
             throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, aes256);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.aes256 = aes256;
+        config.cryptKey = cryptKey;
+        config.rootPath = rootPath;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -597,13 +607,11 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV backedUpMMKVWithID(String mmapID, int mode, @Nullable String cryptKey, String rootPath)
             throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        mode |= BACKUP_MODE;
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, false);
-        return checkProcessMode(handle, mmapID, mode);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.cryptKey = cryptKey;
+        config.rootPath = rootPath;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -619,13 +627,12 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV backedUpMMKVWithID(String mmapID, int mode, @Nullable String cryptKey, boolean aes256, String rootPath)
             throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
+        MMKVConfig config = new MMKVConfig();
         mode |= BACKUP_MODE;
-        long handle = getMMKVWithID(mmapID, mode, cryptKey, rootPath, 0, aes256);
-        return checkProcessMode(handle, mmapID, mode);
+        config.mode = mode;
+        config.cryptKey = cryptKey;
+        config.rootPath = rootPath;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -660,6 +667,24 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     @NonNull
     public static MMKV mmkvWithAshmemID(Context context, String mmapID, int size, int mode, @Nullable String cryptKey,
                                         boolean aes256) throws RuntimeException {
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode | ASHMEM_MODE;
+        config.expectedCapacity = size;
+        config.aes256 = aes256;
+        config.cryptKey = cryptKey;
+        return mmkvWithAshmemID(context, mmapID, config);
+    }
+
+    /**
+     * Create an MMKV instance base on Anonymous Shared Memory, aka not synced to any disk files.
+     *
+     * @param context  The context of Android App, usually from Application.
+     * @param mmapID   The unique ID of the MMKV instance.
+     * @param config   The all-in-one configuration for the MMKV instance.
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV mmkvWithAshmemID(Context context, String mmapID, MMKVConfig config) throws RuntimeException {
         if (rootDir == null) {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
@@ -680,10 +705,10 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
             simpleLog(MMKVLogLevel.LevelInfo, "getting parcelable mmkv in process, Uri = " + uri);
 
             Bundle extras = new Bundle();
-            extras.putInt(MMKVContentProvider.KEY_SIZE, size);
-            extras.putInt(MMKVContentProvider.KEY_MODE, mode);
-            if (cryptKey != null) {
-                extras.putString(MMKVContentProvider.KEY_CRYPT, cryptKey);
+            extras.putInt(MMKVContentProvider.KEY_SIZE, (int) config.expectedCapacity);
+            extras.putInt(MMKVContentProvider.KEY_MODE, config.mode);
+            if (config.cryptKey != null) {
+                extras.putString(MMKVContentProvider.KEY_CRYPT, config.cryptKey);
             }
             ContentResolver resolver = context.getContentResolver();
             Bundle result = resolver.call(uri, MMKVContentProvider.FUNCTION_NAME, mmapID, extras);
@@ -702,12 +727,8 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
         }
         simpleLog(MMKVLogLevel.LevelInfo, "getting mmkv in main process");
 
-        mode = mode | ASHMEM_MODE;
-        long handle = getMMKVWithIDAndSize(mmapID, size, mode, cryptKey, aes256);
-        if (handle != 0) {
-            return new MMKV(handle);
-        }
-        throw new IllegalStateException("Fail to create an Ashmem MMKV instance [" + mmapID + "]");
+        config.mode = config.mode | ASHMEM_MODE;
+        return mmkvWithID(mmapID, config);
     }
 
     /**
@@ -717,12 +738,8 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV defaultMMKV() throws RuntimeException {
-        if (rootDir == null) {
-            throw new IllegalStateException("You should Call MMKV.initialize() first.");
-        }
-
-        long handle = getDefaultMMKV(SINGLE_PROCESS_MODE, null, false);
-        return checkProcessMode(handle, "DefaultMMKV", SINGLE_PROCESS_MODE);
+        MMKVConfig config = new MMKVConfig();
+        return defaultMMKV(config);
     }
 
     /**
@@ -734,7 +751,10 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV defaultMMKV(int mode, @Nullable String cryptKey) throws RuntimeException {
-        return defaultMMKV(mode, cryptKey, false);
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.cryptKey = cryptKey;
+        return defaultMMKV(config);
     }
 
     /**
@@ -747,12 +767,33 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      */
     @NonNull
     public static MMKV defaultMMKV(int mode, @Nullable String cryptKey, boolean aes256) throws RuntimeException {
+        MMKVConfig config = new MMKVConfig();
+        config.mode = mode;
+        config.aes256 = aes256;
+        config.cryptKey = cryptKey;
+        return defaultMMKV(config);
+    }
+
+    /**
+     * Create the default MMKV instance in customize configuration.
+     *
+     * @param config     The all-in-one configuration for the MMKV instance.
+     * @throws RuntimeException if there's an runtime error.
+     */
+    @NonNull
+    public static MMKV defaultMMKV(MMKVConfig config) throws RuntimeException {
         if (rootDir == null) {
             throw new IllegalStateException("You should Call MMKV.initialize() first.");
         }
 
-        long handle = getDefaultMMKV(mode, cryptKey, aes256);
-        return checkProcessMode(handle, "DefaultMMKV", mode);
+        int enableKeyExpire = (config.enableKeyExpire != null) ? (config.enableKeyExpire ? 1 : 0) : -1;
+        Integer value = recoverIndex.get(config.recover);
+        int recover = (value == null) ? -1 : value;
+
+        long handle = getDefaultMMKV(config.mode, config.cryptKey, config.expectedCapacity, config.aes256,
+                enableKeyExpire, config.expiredInSeconds, config.enableCompareBeforeSet, recover, config.itemSizeLimit);
+
+        return checkProcessMode(handle, "DefaultMMKV", config.mode);
     }
 
     @NonNull
@@ -1285,10 +1326,26 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     }
 
     /**
-     * Call this method if the MMKV instance is no longer needed in the near future.
-     * Any subsequent call to any MMKV instances with the same ID is undefined behavior.
+     * Permanently close the underlying native MMKV instance.
+     * <p>
+     * All references backed by the same native instance become invalid immediately.
+     * The caller must ensure no operation is running and no reference is used afterward.
+     * Discard every reference before reopening the same ID. Repeated close on this Java
+     * wrapper is a no-op after its handle has been cleared.
      */
-    public native void close();
+    public void close() {
+        synchronized (this) {
+            long handle = nativeHandle;
+            if (handle == 0) {
+                return;
+            }
+            close(handle);
+            nativeHandle = 0;
+            synchronized (checkedHandleSet) {
+                checkedHandleSet.remove(handle);
+            }
+        }
+    }
 
     /**
      * Clear memory cache of the MMKV instance.
@@ -1467,7 +1524,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     public static final int ExpireInHour = 60 * 60;
     public static final int ExpireInDay = 24 * 60 * 60;
     public static final int ExpireInMonth = 30 * 24 * 60 * 60;
-    public static final int ExpireInYear = 365 * 30 * 24 * 60 * 60;
+    public static final int ExpireInYear = 365 * 24 * 60 * 60;
 
     /**
      * Enable auto key expiration. This is a upgrade operation, the file format will change.
@@ -1781,6 +1838,30 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
         return writeValueToNB(nativeHandle, key, buffer.pointer, buffer.size);
     }
 
+    /**
+     * Write the value of the key to the byte array.
+     *
+     * @return The size written. Return -1 on any error.
+     */
+    public int writeValueToBuffer(String key, @NonNull byte[] buffer) {
+        if (buffer.length == 0) {
+            return -1;
+        }
+        NativeBuffer nativeBuffer = createNativeBuffer(buffer.length);
+        if (nativeBuffer == null) {
+            return -1;
+        }
+        try {
+            int size = writeValueToNativeBuffer(key, nativeBuffer);
+            if (size > 0) {
+                readNB(nativeBuffer.pointer, buffer, Math.min(size, buffer.length));
+            }
+            return size;
+        } finally {
+            destroyNativeBuffer(nativeBuffer);
+        }
+    }
+
     // callback handler
     private static MMKVHandler gCallbackHandler = null;
     private static boolean gWantLogReDirecting = false;
@@ -1791,11 +1872,15 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      * @deprecated This method is deprecated.
      * Use the {@link #initialize(Context, String, LibLoader, MMKVLogLevel, MMKVHandler)} method instead.
      */
+    @Deprecated
     public static void registerHandler(MMKVHandler handler) {
         gCallbackHandler = handler;
         gWantLogReDirecting = gCallbackHandler.wantLogRedirecting();
         long nativeLogHandler = gCallbackHandler.getNativeLogHandler();
         setCallbackHandler(gWantLogReDirecting, true, nativeLogHandler);
+        if (gCallbackHandler.wantContentChangeNotification()) {
+            setWantsContentChangeNotify(true);
+        }
     }
 
     /**
@@ -1806,6 +1891,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
 
         setCallbackHandler(false, false, 0);
         gWantLogReDirecting = false;
+        setWantsContentChangeNotify(gContentChangeNotify != null);
     }
 
     private static int onMMKVCRCCheckFail(String mmapID) {
@@ -1872,23 +1958,37 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
      * For example {@link #checkContentChangedByOuterProcess()}.
      *
      * @param notify The notification handler.
+     * @deprecated Use {@link MMKVHandler#onContentChangedByOuterProcess(String)} instead.
      */
+    @Deprecated
     public static void registerContentChangeNotify(MMKVContentChangeNotification notify) {
         gContentChangeNotify = notify;
-        setWantsContentChangeNotify(gContentChangeNotify != null);
+        setWantsContentChangeNotify(gContentChangeNotify != null || (gCallbackHandler != null && gCallbackHandler.wantContentChangeNotification()));
     }
 
     /**
      * Unregister for MMKV inter-process content change notification.
+     * @deprecated Use {@link MMKVHandler#onContentChangedByOuterProcess(String)} instead.
      */
+    @Deprecated
     public static void unregisterContentChangeNotify() {
         gContentChangeNotify = null;
-        setWantsContentChangeNotify(false);
+        setWantsContentChangeNotify(gCallbackHandler != null && gCallbackHandler.wantContentChangeNotification());
     }
 
     private static void onContentChangedByOuterProcess(String mmapID) {
-        if (gContentChangeNotify != null) {
+        MMKVHandler handler = gCallbackHandler;
+        if (handler != null && handler.wantContentChangeNotification()) {
+            handler.onContentChangedByOuterProcess(mmapID);
+        } else if (gContentChangeNotify != null) {
             gContentChangeNotify.onContentChangedByOuterProcess(mmapID);
+        }
+    }
+
+    private static void onMMKVContentLoadSuccessfully(String mmapID) {
+        MMKVHandler handler = gCallbackHandler;
+        if (handler != null) {
+            handler.onMMKVContentLoadSuccessfully(mmapID);
         }
     }
 
@@ -1910,7 +2010,7 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
     public native boolean isReadOnly();
 
     // jni
-    private final long nativeHandle;
+    private volatile long nativeHandle;
 
     private MMKV(long handle) {
         nativeHandle = handle;
@@ -1918,13 +2018,16 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
 
     private static native void jniInitialize(String rootDir, String cacheDir, int level, boolean wantLogReDirecting, boolean hasCallback, long nativeHandler);
 
+    private static native void close(long handle);
+
     native static long
     getMMKVWithID(String mmapID, int mode, @Nullable String cryptKey, @Nullable String rootPath,
-                  long expectedCapacity, boolean aes256);
+                  long expectedCapacity, boolean aes256, int enableKeyExpire, int expiredInSeconds,
+                  boolean enableCompareBeforeSet, int recover, int itemSizeLimit);
 
-    private native static long getMMKVWithIDAndSize(String mmapID, int size, int mode, @Nullable String cryptKey, boolean aes256);
-
-    private native static long getDefaultMMKV(int mode, @Nullable String cryptKey, boolean aes256);
+    private native static long getDefaultMMKV(int mode, @Nullable String cryptKey, long expectedCapacity,
+                                              boolean aes256, int enableKeyExpire, int expiredInSeconds,
+                                              boolean enableCompareBeforeSet, int recover, int itemSizeLimit);
 
     private native static long getMMKVWithAshmemFD(String mmapID, int fd, int metaFD, @Nullable String cryptKey, boolean aes256);
 
@@ -2001,15 +2104,17 @@ public class MMKV implements SharedPreferences, SharedPreferences.Editor {
 
     private static native void destroyNB(long pointer, int size);
 
+    private static native void readNB(long pointer, byte[] buffer, int size);
+
     private native int writeValueToNB(long handle, String key, long pointer, int size);
 
-    private native boolean isCompareBeforeSetEnabled();
+    public native boolean isCompareBeforeSetEnabled();
 
     @FastNative
-    private native boolean isEncryptionEnabled();
+    public native boolean isEncryptionEnabled();
 
     @FastNative
-    private native boolean isExpirationEnabled();
+    public native boolean isExpirationEnabled();
 
     private static native void enableDisableProcessMode(boolean enable);
 
