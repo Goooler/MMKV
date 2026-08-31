@@ -35,7 +35,7 @@ android {
     buildTypes {
         release {
             minifyEnabled true
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.config
 //            debuggable true
 //            jniDebuggable true
@@ -44,10 +44,6 @@ android {
             signingConfig signingConfigs.config
             jniDebuggable true
         }
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
     }
 
     flavorDimensions = ["stl_mode"]
@@ -65,10 +61,6 @@ android {
     buildFeatures {
         aidl true
         buildConfig true
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
     }
 }
 
