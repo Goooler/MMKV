@@ -5,6 +5,8 @@ import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.SourcesJar
 
 import javax.inject.Inject
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 plugins {
     id 'com.android.library'
@@ -91,12 +93,10 @@ androidComponents {
         }
 
         if (variant.buildType == 'release') {
-            def verifyTask = tasks.register("verify${variant.name.capitalize()}Aar", VerifyAarTask) {
-                aarFile = variant.artifacts.get(SingleArtifact.AAR.INSTANCE)
-            }
-            tasks.named("check").configure {
-                dependsOn(verifyTask)
-            }
+            def verifyTask = tasks.register("verify${variant.name.capitalize()}Aar", VerifyAarTask)
+            variant.artifacts.use(verifyTask)
+                    .wiredWithFiles(VerifyAarTask::getInitialAar, VerifyAarTask::getOutputAar)
+                    .toTransform(SingleArtifact.AAR.INSTANCE)
         }
     }
 }
@@ -134,11 +134,16 @@ abstract class VerifyAarTask extends DefaultTask {
     }
 
     @InputFile
-    abstract RegularFileProperty getAarFile()
+    abstract RegularFileProperty getInitialAar()
+
+    @OutputFile
+    abstract RegularFileProperty getOutputAar()
 
     @TaskAction
     void verify() {
-        def tree = archiveOperations.zipTree(aarFile)
+        def inputAar = initialAar.get().asFile
+
+        def tree = archiveOperations.zipTree(inputAar)
         def expectedAbis = ['armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64']
         def maxAllowedSoSize = 2.5 * 1024 * 1024 // 2.5 MB max for stripped libmmkv.so
 
@@ -147,25 +152,27 @@ abstract class VerifyAarTask extends DefaultTask {
             def prefabFiles = tree.matching { include "prefab/modules/mmkv/libs/android.${abi}/libmmkv.so" }.files
 
             if (jniFiles.empty) {
-                throw new GradleException("Missing jni/${abi}/libmmkv.so in AAR")
+                throw new GradleException("Missing jni/${abi}/libmmkv.so in ${inputAar.name}")
             }
             if (prefabFiles.empty) {
-                throw new GradleException("Missing prefab/modules/mmkv/libs/android.${abi}/libmmkv.so in AAR")
+                throw new GradleException("Missing prefab/modules/mmkv/libs/android.${abi}/libmmkv.so in ${inputAar.name}")
             }
 
             def jniSize = jniFiles.first().length()
             def prefabSize = prefabFiles.first().length()
 
             if (jniSize > maxAllowedSoSize) {
-                throw new GradleException("jni/${abi}/libmmkv.so is abnormally large (${jniSize} bytes). Debug symbols might not be stripped.")
+                throw new GradleException("jni/${abi}/libmmkv.so in ${inputAar.name} is abnormally large (${jniSize} bytes). Debug symbols might not be stripped.")
             }
             if (prefabSize > maxAllowedSoSize) {
-                throw new GradleException("prefab/modules/mmkv/libs/android.${abi}/libmmkv.so is abnormally large (${prefabSize} bytes). Debug symbols might not be stripped.")
+                throw new GradleException("prefab/modules/mmkv/libs/android.${abi}/libmmkv.so in ${inputAar.name} is abnormally large (${prefabSize} bytes). Debug symbols might not be stripped.")
             }
 
             if (Math.abs(jniSize - prefabSize) > 1024) {
-                throw new GradleException("Size mismatch between jni and prefab for ${abi}: jni=${jniSize}, prefab=${prefabSize}")
+                throw new GradleException("Size mismatch between jni and prefab for ${abi} in ${inputAar.name}: jni=${jniSize}, prefab=${prefabSize}")
             }
         }
+
+        Files.copy(inputAar.toPath(), outputAar.get().asFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
     }
 }
