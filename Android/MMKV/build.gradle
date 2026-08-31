@@ -1,20 +1,17 @@
-import com.android.build.gradle.api.AndroidBasePlugin
-
 plugins {
     id 'com.android.application' version '9.3.1' apply false
     id 'com.android.library' version '9.3.1' apply false
-    id 'org.jetbrains.kotlin.android' version '2.2.21' apply false
     id 'com.vanniktech.maven.publish' version '0.36.0' apply false
 }
 
 allprojects {
-    plugins.withType(AndroidBasePlugin).configureEach {
+    plugins.withId("com.android.base") {
         android {
-            compileSdk 34
-            ndkVersion "28.1.13356709"
+            compileSdk = 34
+            ndkVersion = "28.1.13356709"
 
             defaultConfig {
-                minSdkVersion 23
+                minSdk = 23
             }
 
             compileOptions {
