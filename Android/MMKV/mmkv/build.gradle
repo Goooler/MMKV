@@ -1,5 +1,7 @@
 import com.android.build.gradle.tasks.SourceJarTask
 import com.vanniktech.maven.publish.AndroidMultiVariantLibrary
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.SourcesJar
 
 plugins {
     id 'com.android.library'
@@ -48,33 +50,12 @@ android {
         DefaultCpp {
             isDefault = true
             dimension "stl_mode"
-            ext.artifactIdSuffix = ''
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_static"]
-                    cppFlags "-DMMKV_STL_SHARED=0"
-                }
-            }
         }
         StaticCpp {
             dimension "stl_mode"
-            ext.artifactIdSuffix = 'static'
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_static"]
-                    cppFlags "-DMMKV_STL_SHARED=0"
-                }
-            }
         }
         SharedCpp {
             dimension "stl_mode"
-            ext.artifactIdSuffix = 'shared'
-            externalNativeBuild {
-                cmake {
-                    arguments = ["-DANDROID_STL=c++_shared"]
-                    cppFlags "-DMMKV_STL_SHARED=1"
-                }
-            }
         }
     }
     buildFeatures {
@@ -90,44 +71,18 @@ android {
     }
 }
 
-// TODO: should be improved to avoid hardcoding the path.
 androidComponents {
     onVariants(selector().all()) { variant ->
-        def capName = variant.name.capitalize()
-        def abiFilters = ['arm64-v8a', 'x86_64', 'armeabi-v7a', 'x86']
-
-        def syncStrippedLibsToPrefab = tasks.register("syncStrippedLibsToPrefab${capName}", Copy) {
-            def start = layout.buildDirectory
-                    .dir("intermediates/stripped_native_libs/${variant.name}/strip${capName}DebugSymbols/out/lib")
-                    .map { it.asFile }
-            def end = layout.buildDirectory
-                    .dir("intermediates/prefab_package/${capName}/prefab/modules/mmkv/libs")
-                    .map { it.asFile }
-            from(start) {
-                include "**/libmmkv.so"
+        def flavorName = variant.flavorName
+        if (flavorName == 'DefaultCpp' || flavorName == 'StaticCpp') {
+            variant.externalNativeBuild?.with {
+                arguments.addAll("-DANDROID_STL=c++_static")
+                cppFlags.addAll("-DMMKV_STL_SHARED=0")
             }
-            into end
-            eachFile {
-                logger.debug("lib path before: $path")
-                for (abi in abiFilters) {
-                    if (path.contains("${abi}/")) {
-                        path = path.replace("${abi}/", "android.${abi}/")
-                        break
-                    }
-                }
-                logger.debug("lib path after: $path")
-            }
-        }
-
-        tasks.whenTaskAdded {
-            if (name == "externalNativeBuild${capName}") {
-                finalizedBy(syncStrippedLibsToPrefab)
-            }
-            if (name == "strip${capName}DebugSymbols") {
-                finalizedBy(syncStrippedLibsToPrefab)
-            }
-            if (name == "bundle${capName}Aar" || name == "bundle${capName}LocalLintAar" || name == "prefab${capName}Package") {
-                dependsOn(syncStrippedLibsToPrefab)
+        } else if (flavorName == 'SharedCpp') {
+            variant.externalNativeBuild?.with {
+                arguments.addAll("-DANDROID_STL=c++_shared")
+                cppFlags.addAll("-DMMKV_STL_SHARED=1")
             }
         }
     }
@@ -136,7 +91,7 @@ androidComponents {
 mavenPublishing {
     def buildTypes = ['release'] as Set
     def variants = ['stl_mode': ['DefaultCpp'] as Set]
-    configure(new AndroidMultiVariantLibrary(true, true, buildTypes, variants))
+    configure(new AndroidMultiVariantLibrary(new JavadocJar.Javadoc(), new SourcesJar.Sources(), buildTypes, variants))
 }
 
 tasks.withType(SourceJarTask).configureEach {
