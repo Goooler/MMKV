@@ -15,7 +15,6 @@ android {
                 abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
             }
         }
-        ndkVersion "28.1.13356709"
     }
     buildTypes {
         release {
@@ -93,7 +92,7 @@ android {
 
 // TODO: should be improved to avoid hardcoding the path.
 androidComponents {
-    onVariants(selector().withBuildType("release")) { variant ->
+    onVariants(selector().all()) { variant ->
         def capName = variant.name.capitalize()
         def abiFilters = ['arm64-v8a', 'x86_64', 'armeabi-v7a', 'x86']
 
@@ -127,7 +126,7 @@ androidComponents {
             if (name == "strip${capName}DebugSymbols") {
                 finalizedBy(syncStrippedLibsToPrefab)
             }
-            if (name == "bundle${capName}Aar" || name == "bundle${capName}LocalLintAar") {
+            if (name == "bundle${capName}Aar" || name == "bundle${capName}LocalLintAar" || name == "prefab${capName}Package") {
                 dependsOn(syncStrippedLibsToPrefab)
             }
         }

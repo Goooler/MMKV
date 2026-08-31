@@ -1,21 +1,9 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'github>goooler/renovate-config:default.json5',
   ],
   "packageRules": [
-    {
-      "matchFileNames": [
-        "Android/MMKV/**",
-        ".github/workflows/**"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-      ],
-      "automerge": true,
-      "automergeStrategy": "rebase",
-    },
     {
       groupName: 'AGP',
       matchPackageNames: [
@@ -27,7 +15,7 @@
         "!Android/MMKV/**",
         "!.github/workflows/**"
       ],
-      "enabled": false
+      "enabled": false,
     }
   ]
 }
