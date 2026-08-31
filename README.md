@@ -12,8 +12,6 @@ MMKV is an **efficient**, **small**, **easy-to-use** mobile key-value storage fr
 
 # MMKV for Android
 
-[![Maven Central Version](https://img.shields.io/maven-central/v/io.github.goooler.mmkv/mmkv)](https://central.sonatype.com/artifact/io.github.goooler.mmkv/mmkv)
-
 ## Features
 
 * **Efficient**. MMKV uses mmap to keep memory synced with files, and protobuf to encode/decode values, making the most of Android to achieve the best performance.
@@ -27,6 +25,8 @@ MMKV is an **efficient**, **small**, **easy-to-use** mobile key-value storage fr
 
 
 ## Getting Started
+
+[![Maven Central Version](https://img.shields.io/maven-central/v/io.github.goooler.mmkv/mmkv)](https://central.sonatype.com/artifact/io.github.goooler.mmkv/mmkv)
 
 ### Installation Via Maven
 Add the following lines to `build.gradle` on your app module:
