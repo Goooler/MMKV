@@ -108,14 +108,14 @@ androidComponents {
             }
             into end
             eachFile {
-//                logger.debug("lib path before: $path")
+                logger.debug("lib path before: $path")
                 for (abi in abiFilters) {
                     if (path.contains("${abi}/")) {
                         path = path.replace("${abi}/", "android.${abi}/")
                         break
                     }
                 }
-//                logger.debug("lib path after: $path")
+                logger.debug("lib path after: $path")
             }
         }
 
