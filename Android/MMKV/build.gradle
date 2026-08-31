@@ -10,7 +10,7 @@ allprojects {
     plugins.withType(AndroidBasePlugin).configureEach {
         android {
             compileSdk = 34
-            ndkVersion = "28.1.13356709"
+            ndkVersion = "29.0.14206865"
 
             defaultConfig {
                 minSdk = 23
